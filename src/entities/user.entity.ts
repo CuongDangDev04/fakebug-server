@@ -1,0 +1,87 @@
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToMany,
+  ManyToMany,
+  JoinTable,
+} from 'typeorm';
+import { Post } from './post.entity';
+import { Comment } from './comment.entity';
+import { Like } from './like.entity';
+import { Message } from './message.entity';
+import { Friendship } from './friendship.entity';
+import { Call } from './call.entity';
+
+
+@Entity()
+export class User {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ nullable: true }) // Có thể không có username nếu chỉ login qua Google
+  username: string;
+
+  @Column({ unique: true })
+  email: string;
+
+  @Column({ nullable: true }) // Cho phép null nếu dùng Google
+  password_hash: string;
+
+  @Column({ nullable: true })
+  avatar_url: string;
+
+  @Column({ nullable: true })
+  bio: string;
+
+  @Column({ type: 'enum', enum: ['user', 'admin'], default: 'user' })
+  role: 'user' | 'admin';
+
+  @Column({ default: 'local' }) // 'local' | 'google' |
+  provider: string;
+
+  @Column({ nullable: true, type: 'text' }) 
+  access_token: string;
+
+  @CreateDateColumn()
+  created_at: Date;
+
+  @UpdateDateColumn()
+  updated_at: Date;
+
+  // Một user có nhiều bài viết
+  @OneToMany(() => Post, post => post.user)
+  posts: Post[];
+
+  // Một user có nhiều comment
+  @OneToMany(() => Comment, comment => comment.user)
+  comments: Comment[];
+
+  // Một user có nhiều likes
+  @OneToMany(() => Like, like => like.user)
+  likes: Like[];
+
+  // Một user gửi nhiều tin nhắn
+  @OneToMany(() => Message, message => message.sender)
+  sentMessages: Message[];
+
+  // Một user nhận nhiều tin nhắn
+  @OneToMany(() => Message, message => message.receiver)
+  receivedMessages: Message[];
+
+  // Quan hệ bạn bè
+  @OneToMany(() => Friendship, friendship => friendship.userOne)
+  friendshipsInitiated: Friendship[];
+
+  @OneToMany(() => Friendship, friendship => friendship.userTwo)
+  friendshipsReceived: Friendship[];
+
+  // Cuộc gọi gọi hoặc nhận
+  @OneToMany(() => Call, call => call.caller)
+  callsMade: Call[];
+
+  @OneToMany(() => Call, call => call.receiver)
+  callsReceived: Call[];
+}
