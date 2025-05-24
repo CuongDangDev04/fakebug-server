@@ -21,14 +21,20 @@ export class User {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ nullable: true }) // Có thể không có username nếu chỉ login qua Google
-  username: string;
+  @Column({ nullable: true })
+  first_name: string; // givenName từ Google
+
+  @Column({ nullable: true })
+  last_name: string; // familyName từ Google
+
+  @Column({ nullable: true })
+  username: string;  
 
   @Column({ unique: true })
   email: string;
 
-  @Column({ nullable: true }) // Cho phép null nếu dùng Google
-  password_hash: string;
+  @Column({ nullable: true })
+  password_hash: string; // Chỉ dùng cho local
 
   @Column({ nullable: true })
   avatar_url: string;
@@ -39,17 +45,10 @@ export class User {
   @Column({ type: 'enum', enum: ['user', 'admin'], default: 'user' })
   role: 'user' | 'admin';
 
-  @Column({ default: 'local' }) // 'local' | 'google' |
-  provider: string;
-
-  @Column({ nullable: true, type: 'text' }) 
-  access_token: string;
-
-  @CreateDateColumn()
-  created_at: Date;
-
-  @UpdateDateColumn()
-  updated_at: Date;
+  @Column({ type: 'enum', enum: ['local', 'google'], default: 'local' })
+  provider: 'local' | 'google';
+  @Column({ type: 'text', nullable: true })
+  access_token: string;  
 
   // Một user có nhiều bài viết
   @OneToMany(() => Post, post => post.user)

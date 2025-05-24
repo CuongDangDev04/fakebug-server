@@ -12,71 +12,73 @@ export class AuthService {
   ) { }
 
   async loginWithGoogle(profile: any) {
-    const { emails, name, photos } = profile;
+    const { email, first_name, last_name, avatar_url, provider } = profile;
 
-    if (!emails || emails.length === 0) {
+    if (!email) {
       throw new BadRequestException('Email not found in Google profile');
     }
-
-    const email = emails[0].value;
-    const username = name?.givenName || 'User';
-    const avatar_url = photos?.[0]?.value || null;
 
     let user = await this.userService.findByEmail(email);
 
     if (!user) {
       user = await this.userService.create({
         email,
-        username,
+        first_name,
+        last_name,
         avatar_url,
         role: 'user',
-        provider: 'google',
+        provider,
       });
     }
 
     const payload = { sub: user.id, email: user.email, role: user.role };
-    const jwtAccessToken = this.jwtService.sign(payload);
-
+    const access_token = this.jwtService.sign(payload);
     // Cập nhật access_token vào DB
-    user.access_token = jwtAccessToken;
+    user.access_token = access_token;
     await this.userService.update(user);
 
     return {
       message: 'Login successful',
-      access_token: jwtAccessToken,
+      access_token,
       user,
-    }
+    };
   }
+
 
   // Hàm đăng ký tài khoản local
   async registerLocal(registerUserDto: RegisterUserDto) {
-    const { email, password, username, avatar_url, bio } = registerUserDto;
+    const {
+      email,
+      password,
+      username,
+      first_name,
+      last_name,
+      avatar_url,
+      bio,
+    } = registerUserDto;
 
-    // Kiểm tra email đã tồn tại chưa
     const existingUser = await this.userService.findByEmail(email);
     if (existingUser) {
       throw new BadRequestException('Email already registered');
     }
 
-    // Mã hóa mật khẩu
     const password_hash = await bcrypt.hash(password, 10);
 
-    // Tạo user mới
     const user = await this.userService.create({
       email,
-      username: username || 'User',
       password_hash,
+      username: username || `${first_name || ''} ${last_name || ''}`.trim() || 'User',
+      first_name,
+      last_name,
       avatar_url,
       bio,
       role: 'user',
       provider: 'local',
     });
 
-    // Tạo JWT token
     const payload = { sub: user.id, email: user.email, role: user.role };
     const jwtAccessToken = this.jwtService.sign(payload);
 
-    // Cập nhật access_token vào DB
     user.access_token = jwtAccessToken;
     await this.userService.update(user);
 
@@ -87,28 +89,26 @@ export class AuthService {
     };
   }
 
+
   // Hàm đăng nhập bằng email/password
   async loginLocal(loginUserDto: LoginUserDto) {
-    const { email, password } = loginUserDto;
+    const { emailOrUsername, password } = loginUserDto;
 
-    // Tìm user theo email
-    const user = await this.userService.findByEmail(email);
+    // Tìm theo email hoặc username
+    const user = await this.userService.findByEmailOrUsername(emailOrUsername);
 
     if (!user || !user.password_hash) {
-      throw new BadRequestException('Invalid email or password');
+      throw new BadRequestException('Invalid email/username or password');
     }
 
-    // So sánh mật khẩu
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
     if (!isPasswordValid) {
-      throw new BadRequestException('Invalid email or password');
+      throw new BadRequestException('Invalid email/username or password');
     }
 
-    // Tạo payload và token
-    const payload = { sub: user.id, email: user.email };
+    const payload = { sub: user.id, email: user.email, role: user.role };
     const jwtAccessToken = this.jwtService.sign(payload);
 
-    // Cập nhật token vào DB
     user.access_token = jwtAccessToken;
     await this.userService.update(user);
 
