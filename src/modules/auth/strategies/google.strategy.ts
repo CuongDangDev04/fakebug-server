@@ -12,9 +12,12 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       scope: ['email', 'profile'],
     });
   }
-
+  authorizationParams() {
+    return {
+      prompt: 'select_account', // Bắt buộc chọn tài khoản
+    };
+  }
   async validate(accessToken: string, refreshToken: string, profile: any) {
-    // Chỉ trả về profile, không cần token Google
     return profile;
   }
 }

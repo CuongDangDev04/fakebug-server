@@ -19,6 +19,9 @@ export class UserService {
         return this.userRepository.save(user);
     }
     async update(user: User): Promise<User> {
-        return this.userRepository.save(user); // dùng save để update hoặc insert
+        return this.userRepository.save(user);
+    }
+    async findById(id: number): Promise<User | null> {
+        return this.userRepository.findOne({ where: { id } });
     }
 }
