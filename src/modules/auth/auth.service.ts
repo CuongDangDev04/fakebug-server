@@ -1,12 +1,26 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../user/user.service';
 import { RegisterUserDto } from './dto/register-user.dto';
 import * as bcrypt from 'bcrypt';
 import { LoginUserDto } from './dto/login-user.dto';
+import { MailerService } from '@nestjs-modules/mailer';
+import { InjectRepository } from '@nestjs/typeorm';
+import { PasswordReset } from 'src/entities/password-reset.entity';
+import { MoreThan, Repository } from 'typeorm';
+import { User } from 'src/entities/user.entity';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { NotFoundError } from 'rxjs';
 @Injectable()
 export class AuthService {
   constructor(
+    @InjectRepository(PasswordReset)
+    private passwordResetRepo: Repository<PasswordReset>,
+    @InjectRepository(User)
+    private userRepo: Repository<User>,
+    private mailerService: MailerService,
+
     private readonly jwtService: JwtService,
     private readonly userService: UserService,
   ) { }
@@ -124,7 +138,7 @@ export class AuthService {
     // Tìm user theo id
     const user = await this.userService.findById(userId);
     if (!user) {
-      throw new BadRequestException('User not found');
+      throw new NotFoundException('User not found');
     }
 
     // Xóa access_token khỏi DB
@@ -134,5 +148,76 @@ export class AuthService {
     return {
       message: 'Logout successful',
     };
+  }
+  async forgotPassword(dto: ForgotPasswordDto) {
+    // Tìm user theo email
+    const user = await this.userRepo.findOne({ where: { email: dto.email } });
+    if (!user) throw new NotFoundException('Email không tồn tại');
+
+    // Tìm OTP chưa hết hạn của email này trong database
+    const existingOtp = await this.passwordResetRepo.findOne({
+      where: {
+        email: dto.email,
+        expiresAt: MoreThan(new Date()), // còn hiệu lực
+      },
+    });
+
+    if (existingOtp) {
+      // Nếu đã có OTP còn hiệu lực thì không gửi lại
+      throw new BadRequestException('Vui lòng chờ 2 phút trước khi yêu cầu gửi lại mã OTP.');
+    }
+
+    // Tạo OTP mới
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 2 * 60 * 1000); // 2 phút
+
+    // Lưu OTP mới
+    await this.passwordResetRepo.save({
+      email: dto.email,
+      otp,
+      expiresAt,
+    });
+
+    // Gửi mail
+    await this.mailerService.sendMail({
+      to: dto.email,
+      subject: 'Mã OTP đặt lại mật khẩu',
+      html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.5;">
+        <h2 style="color: #007bff;">Xin chào,</h2>
+        <p>Bạn vừa yêu cầu đặt lại mật khẩu.</p>
+        <p>Mã OTP của bạn là:</p>
+        <div style="font-size: 24px; font-weight: bold; color: #ff0000; margin: 12px 0;">
+          ${otp}
+        </div>
+        <p>Mã OTP có hiệu lực trong <strong>2 phút</strong>. Vui lòng không chia sẻ mã này cho bất kỳ ai.</p>
+        <br />
+        <p>Trân trọng,</p>
+        <p><strong>Đội ngũ hỗ trợ</strong></p>
+      </div>
+    `,
+    });
+
+    return { message: 'Đã gửi mã OTP qua email' };
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const record = await this.passwordResetRepo.findOne({
+      where: { email: dto.email, otp: dto.otp },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!record) throw new BadRequestException('Mã OTP không đúng');
+    if (new Date() > record.expiresAt) throw new BadRequestException('Mã OTP đã hết hạn');
+
+    const user = await this.userRepo.findOne({ where: { email: dto.email } });
+    if (!user) throw new NotFoundException('Người dùng không tồn tại');
+
+    user.password_hash = await bcrypt.hash(dto.newPassword, 10);
+    await this.userRepo.save(user);
+
+    await this.passwordResetRepo.delete({ id: record.id });
+
+    return { message: 'Đổi mật khẩu thành công' };
   }
 }
