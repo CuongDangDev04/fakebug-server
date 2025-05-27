@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Friendship } from 'src/entities/friendship.entity';
 import { User } from 'src/entities/user.entity';
 import { Repository } from 'typeorm';
 
@@ -8,6 +9,8 @@ export class UserService {
     constructor(
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
+        @InjectRepository(Friendship)
+        private readonly friendshipRepo: Repository<Friendship>
     ) { }
 
     async findByEmail(email: string): Promise<User | null> {
@@ -31,5 +34,53 @@ export class UserService {
                 { username: identifier },
             ],
         });
+    }
+    async getUserProfile(userId: number) {
+        console.log('Gọi getUserProfile với userId =', userId);
+        const user = await this.userRepository.findOne({
+            where: { id: userId },
+            relations: ['posts', 'comments', 'likes'],
+        });
+        console.log('cc',user)
+        if (!user) {
+            throw new NotFoundException('User not found');
+        }
+
+        // Lấy danh sách bạn bè đã chấp nhận
+        const friends = await this.friendshipRepo
+            .createQueryBuilder('friendship')
+            .where('(friendship.userOneId = :userId OR friendship.userTwoId = :userId)', { userId })
+            .andWhere('friendship.status = :status', { status: 'accepted' })
+            .leftJoinAndSelect('friendship.userOne', 'userOne')
+            .leftJoinAndSelect('friendship.userTwo', 'userTwo')
+            .getMany();
+
+        const friendUsers = friends
+            .map(f => (f.userOne.id === userId ? f.userTwo : f.userOne))
+            .slice(0, 6);
+
+        return {
+            user: {
+                id: user.id,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                username: user.username,
+                email: user.email,
+                avatar_url: user.avatar_url,
+                bio: user.bio,
+                role: user.role,
+                provider: user.provider,
+            },
+            friends: {
+                total: friends.length,
+                list: friendUsers.map(friend => ({
+                    id: friend.id,
+                    first_name: friend.first_name,
+                    last_name: friend.last_name,
+                    username: friend.username,
+                    avatar_url: friend.avatar_url,
+                })),
+            },
+        }
     }
 }
