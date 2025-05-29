@@ -35,13 +35,22 @@ export class UserService {
             ],
         });
     }
+    async getInfoUser(userId: number) {
+        const user = await this.userRepository.findOne({
+            where: { id: userId }
+        })
+        console.log('user info', user)
+        if (!user) {
+            throw new NotFoundException('User not found')
+        }
+        return { user }
+
+    }
     async getUserProfile(userId: number) {
-        console.log('Gọi getUserProfile với userId =', userId);
         const user = await this.userRepository.findOne({
             where: { id: userId },
             relations: ['posts', 'comments', 'likes'],
         });
-        console.log('cc',user)
         if (!user) {
             throw new NotFoundException('User not found');
         }

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, Request, Res, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { RegisterUserDto } from './dto/register-user.dto';
@@ -8,6 +8,7 @@ import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
@@ -19,9 +20,14 @@ export class AuthController {
 
   @Get('google/redirect')
   @UseGuards(AuthGuard('google'))
-  async googleAuthRedirect(@Req() req) {
-    // req.user chính là profile Google
-    return this.authService.loginWithGoogle(req.user);
+  async googleAuthRedirect(@Req() req, @Res() res: Response) {
+    const result = await this.authService.loginWithGoogle(req.user);
+    
+    // Chuyển hướng về FE với token và user data trong URL
+    const redirectUrl = new URL('http://localhost:3000/google/callback');
+    redirectUrl.searchParams.append('token', result.access_token);
+    
+    return res.redirect(redirectUrl.toString());
   }
 
   @Post('register')

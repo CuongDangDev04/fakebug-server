@@ -11,4 +11,8 @@ export class UserController {
     async getProfile(@Req() req: any) {
         return this.userService.getUserProfile(req.user.userId);
     }
+    @Get('getInfo-user')
+    async getInfoUser(@Req() req: any) {
+        return this.userService.getInfoUser(req.user.userId)
+    }
 }
