@@ -29,32 +29,33 @@ export class FriendshipController {
 
   @Delete('unfriend/:targetId')
   async unfriend(@Param("targetId") targetId: number, @Req() req: any) {
-    return this.friendshipService.unfriend(req.user.id, +targetId)
+    return this.friendshipService.unfriend(req.user.userId, +targetId)
   }
   @Post('block/:targetId')
   async block(@Param('targetId') targetId: number, @Req() req: any) {
-    return this.friendshipService.blockUser(req.user.id, +targetId)
+    return this.friendshipService.blockUser(req.user.userId, +targetId)
   }
 
   @Delete('unblock/:targetId')
   async unblockUser(@Req() req: any, @Param('targetId') targetId: number) {
-    return this.friendshipService.unblockUser(req.user.id, +targetId);
+    return this.friendshipService.unblockUser(req.user.userId, +targetId);
   }
   //  Danh sách lời mời đã nhận
+@UseGuards(JwtAuthGuard)
   @Get('requests/received')
   async getReceivedRequests(@Req() req: any) {
-    return this.friendshipService.getReceivedFriendRequests(req.user.id);
+    return this.friendshipService.getReceivedFriendRequests(req.user.userId);
   }
 
   // Danh sách lời mời đã gửi
   @Get('requests/sent')
   async getSentRequests(@Req() req: any) {
-    return this.friendshipService.getSentFriendRequests(req.user.id);
+    return this.friendshipService.getSentFriendRequests(req.user.userId);
   }
 
   //  Hủy lời mời kết bạn đã gửi
   @Delete('requests/cancel/:targetId')
   async cancelSentRequest(@Req() req: any, @Param('targetId') targetId: number) {
-    return this.friendshipService.cancelSentRequest(req.user.id, +targetId);
+    return this.friendshipService.cancelSentRequest(req.user.userId, +targetId);
   }
 }
