@@ -58,4 +58,16 @@ export class FriendshipController {
   async cancelSentRequest(@Req() req: any, @Param('targetId') targetId: number) {
     return this.friendshipService.cancelSentRequest(req.user.userId, +targetId);
   }
+
+  // Lấy danh sách bạn chung với một người dùng khác
+  @Get('mutual/:targetId')
+  async getMutualFriends(@Req() req, @Param('targetId', ParseIntPipe) targetId: number) {
+    return this.friendshipService.getMutualFriends(req.user.userId, targetId);
+  }
+
+  // Lấy danh sách gợi ý kết bạn dựa trên bạn chung
+  @Get('suggestions') 
+  async getFriendSuggestions(@Req() req) {
+    return this.friendshipService.getFriendSuggestions(req.user.userId);
+  }
 }

@@ -271,5 +271,88 @@ export class FriendshipService {
       message: "Đã hủy lời mời kết bạn",
     };
   }
+  // Helper method để lấy danh sách ID bạn bè
+  private async getFriendIds(userId: number): Promise<number[]> {
+    const friendships = await this.friendshipRepo.find({
+      where: [
+        { userOne: { id: userId }, status: 'accepted' },
+        { userTwo: { id: userId }, status: 'accepted' },
+      ],
+      relations: ['userOne', 'userTwo'],
+    });
+
+    return friendships.map(friendship =>
+      friendship.userOne.id === userId ? friendship.userTwo.id : friendship.userOne.id
+    );
+  }
+  // Lấy danh sách bạn chung
+  async getMutualFriends(userId: number, targetId: number) {
+    // Lấy danh sách bạn của người dùng hiện tại
+    const userFriends = await this.getFriendIds(userId);
+    // Lấy danh sách bạn của người dùng target 
+    const targetFriends = await this.getFriendIds(targetId);
+
+    // Tìm các ID chung giữa 2 danh sách
+    const mutualFriendIds = userFriends.filter(id => targetFriends.includes(id));
+
+    // Lấy thông tin chi tiết của các bạn chung
+    const mutualFriends = await this.userRepo.findByIds(mutualFriendIds);
+    
+    const formatted = mutualFriends.map(friend => ({
+      id: friend.id,
+      firstName: friend.first_name,
+      lastName: friend.last_name,
+      avatar: friend.avatar_url
+    }));
+
+    return {
+      total: formatted.length,
+      friends: formatted
+    };
+  }
+  // Gợi ý kết bạn dựa trên bạn chung
+  async getFriendSuggestions(userId: number) {
+    // Lấy danh sách bạn hiện tại
+    const currentFriends = await this.getFriendIds(userId);
+
+    // Lấy danh sách bạn của bạn (cấp 2)
+    const friendsOfFriends = await Promise.all(
+      currentFriends.map(friendId => this.getFriendIds(friendId))
+    );
+
+    // Gộp tất cả ID và loại bỏ trùng lặp
+    const allPotentialFriends = [...new Set(friendsOfFriends.flat())]
+      .filter(id => id !== userId && !currentFriends.includes(id));
+
+    // Tính số lượng bạn chung cho mỗi gợi ý
+    const suggestions = await Promise.all(
+      allPotentialFriends.map(async (suggestedId) => {
+        const mutualFriends = await this.getMutualFriends(userId, suggestedId);
+        const user = await this.userRepo.findOne({ where: { id: suggestedId } });
+
+        if (!user) {
+          return null;
+        }
+
+        return {
+          id: user.id,
+          firstName: user.first_name,
+          lastName: user.last_name,
+          avatar: user.avatar_url,
+          mutualFriendsCount: mutualFriends.total
+        };
+      })
+    );
+
+    // Lọc bỏ các giá trị null và sắp xếp
+    const validSuggestions = suggestions.filter((s): s is NonNullable<typeof s> => s !== null)
+      .sort((a, b) => b.mutualFriendsCount - a.mutualFriendsCount);
+
+    return {
+      total: validSuggestions.length,
+      suggestions: validSuggestions
+    };
+  }
+
 
 }
