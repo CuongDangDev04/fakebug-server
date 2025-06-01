@@ -315,24 +315,43 @@ export class FriendshipService {
     // Lấy danh sách bạn hiện tại
     const currentFriends = await this.getFriendIds(userId);
 
+    // Lấy danh sách người đã bị chặn hoặc đã gửi lời mời
+    const excludedUsers = await this.friendshipRepo.find({
+      where: [
+        { userOne: { id: userId }, status: 'blocked' },
+        { userTwo: { id: userId }, status: 'blocked' },
+        { userOne: { id: userId }, status: 'pending' },
+        { userTwo: { id: userId }, status: 'pending' },
+      ],
+      relations: ['userOne', 'userTwo'],
+    });
+
+    const excludedIds = excludedUsers.map(friendship => 
+      friendship.userOne.id === userId ? friendship.userTwo.id : friendship.userOne.id
+    );
+
     // Lấy danh sách bạn của bạn (cấp 2)
     const friendsOfFriends = await Promise.all(
       currentFriends.map(friendId => this.getFriendIds(friendId))
     );
 
-    // Gộp tất cả ID và loại bỏ trùng lặp
+    // Gộp và lọc danh sách gợi ý
     const allPotentialFriends = [...new Set(friendsOfFriends.flat())]
-      .filter(id => id !== userId && !currentFriends.includes(id));
+      .filter(id => 
+        id !== userId && 
+        !currentFriends.includes(id) && 
+        !excludedIds.includes(id)
+      );
 
-    // Tính số lượng bạn chung cho mỗi gợi ý
+    // Tính số lượng bạn chung và lấy thông tin người dùng
     const suggestions = await Promise.all(
       allPotentialFriends.map(async (suggestedId) => {
-        const mutualFriends = await this.getMutualFriends(userId, suggestedId);
-        const user = await this.userRepo.findOne({ where: { id: suggestedId } });
+        const [mutualFriends, user] = await Promise.all([
+          this.getMutualFriends(userId, suggestedId),
+          this.userRepo.findOne({ where: { id: suggestedId } })
+        ]);
 
-        if (!user) {
-          return null;
-        }
+        if (!user) return null;
 
         return {
           id: user.id,
@@ -344,8 +363,9 @@ export class FriendshipService {
       })
     );
 
-    // Lọc bỏ các giá trị null và sắp xếp
-    const validSuggestions = suggestions.filter((s): s is NonNullable<typeof s> => s !== null)
+    // Lọc và sắp xếp kết quả
+    const validSuggestions = suggestions
+      .filter((s): s is NonNullable<typeof s> => s !== null)
       .sort((a, b) => b.mutualFriendsCount - a.mutualFriendsCount);
 
     return {
