@@ -7,10 +7,19 @@ import { UserService } from './user.service';
 export class UserController {
     constructor(private readonly userService: UserService) { }
 
-    @Get('getProfile')
-    async getProfile(@Req() req: any) {
-        return this.userService.getUserProfile(req.user.userId);
+    @Get('my-profile')
+    async getOwnProfile(@Req() req: any) {
+        return this.userService.getOwnProfile(req.user.userId);
     }
+
+    @Get('profile/:userId')
+    async getOtherUserProfile(
+        @Param('userId', ParseIntPipe) userId: number,
+        @Req() req: any
+    ) {
+        return this.userService.getOtherUserProfile(userId, req.user.userId);
+    }
+
     @Get('getInfo-user')
     async getInfoUser(@Req() req: any) {
         return this.userService.getInfoUser(req.user.userId)

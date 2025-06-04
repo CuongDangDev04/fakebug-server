@@ -46,7 +46,7 @@ export class UserService {
         return { user }
 
     }
-    async getUserProfile(userId: number) {
+    async getOwnProfile(userId: number) {
         const user = await this.userRepository.findOne({
             where: { id: userId },
             relations: ['posts', 'comments', 'likes'],
@@ -55,7 +55,6 @@ export class UserService {
             throw new NotFoundException('User not found');
         }
 
-        // Lấy danh sách bạn bè đã chấp nhận
         const friends = await this.friendshipRepo
             .createQueryBuilder('friendship')
             .where('(friendship.userOneId = :userId OR friendship.userTwoId = :userId)', { userId })
@@ -65,8 +64,7 @@ export class UserService {
             .getMany();
 
         const friendUsers = friends
-            .map(f => (f.userOne.id === userId ? f.userTwo : f.userOne))
-            .slice(0, 6);
+            .map(f => (f.userOne.id === userId ? f.userTwo : f.userOne));
 
         return {
             user: {
@@ -80,6 +78,57 @@ export class UserService {
                 role: user.role,
                 provider: user.provider,
             },
+            friends: {
+                total: friends.length,
+                list: friendUsers.map(friend => ({
+                    id: friend.id,
+                    first_name: friend.first_name,
+                    last_name: friend.last_name,
+                    username: friend.username,
+                    avatar_url: friend.avatar_url,
+                })),
+            },
+        }
+    }
+
+    async getOtherUserProfile(userId: number, viewerId: number) {
+        const user = await this.userRepository.findOne({
+            where: { id: userId },
+            relations: ['posts', 'comments', 'likes'],
+        });
+        if (!user) {
+            throw new NotFoundException('User not found');
+        }
+
+        const friends = await this.friendshipRepo
+            .createQueryBuilder('friendship')
+            .where('(friendship.userOneId = :userId OR friendship.userTwoId = :userId)', { userId })
+            .andWhere('friendship.status = :status', { status: 'accepted' })
+            .leftJoinAndSelect('friendship.userOne', 'userOne')
+            .leftJoinAndSelect('friendship.userTwo', 'userTwo')
+            .getMany();
+
+        // Get friendship status between viewer and profile owner
+        const friendshipStatus = await this.friendshipRepo
+            .createQueryBuilder('friendship')
+            .where('(friendship.userOneId = :viewerId AND friendship.userTwoId = :userId) OR (friendship.userOneId = :userId AND friendship.userTwoId = :viewerId)', 
+                { viewerId, userId })
+            .getOne();
+
+        const friendUsers = friends
+            .map(f => (f.userOne.id === userId ? f.userTwo : f.userOne))
+            .slice(0, 6);
+
+        return {
+            user: {
+                id: user.id,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                username: user.username,
+                avatar_url: user.avatar_url,
+                bio: user.bio,
+            },
+            friendshipStatus: friendshipStatus ? friendshipStatus.status : null,
             friends: {
                 total: friends.length,
                 list: friendUsers.map(friend => ({
