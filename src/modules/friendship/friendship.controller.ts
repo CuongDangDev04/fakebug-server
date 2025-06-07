@@ -70,4 +70,13 @@ export class FriendshipController {
   async getFriendSuggestions(@Req() req) {
     return this.friendshipService.getFriendSuggestions(req.user.userId);
   }
+
+  // Kiểm tra trạng thái bạn bè với một người dùng
+  @Get('status/:targetId')
+  async checkFriendshipStatus(
+    @Req() req,
+    @Param('targetId', ParseIntPipe) targetId: number
+  ) {
+    return this.friendshipService.checkFriendshipStatus(req.user.userId, targetId);
+  }
 }

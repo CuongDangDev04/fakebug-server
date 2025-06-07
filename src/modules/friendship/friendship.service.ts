@@ -297,7 +297,7 @@ export class FriendshipService {
 
     // Lấy thông tin chi tiết của các bạn chung
     const mutualFriends = await this.userRepo.findByIds(mutualFriendIds);
-    
+
     const formatted = mutualFriends.map(friend => ({
       id: friend.id,
       firstName: friend.first_name,
@@ -326,7 +326,7 @@ export class FriendshipService {
       relations: ['userOne', 'userTwo'],
     });
 
-    const excludedIds = excludedUsers.map(friendship => 
+    const excludedIds = excludedUsers.map(friendship =>
       friendship.userOne.id === userId ? friendship.userTwo.id : friendship.userOne.id
     );
 
@@ -337,9 +337,9 @@ export class FriendshipService {
 
     // Gộp và lọc danh sách gợi ý
     const allPotentialFriends = [...new Set(friendsOfFriends.flat())]
-      .filter(id => 
-        id !== userId && 
-        !currentFriends.includes(id) && 
+      .filter(id =>
+        id !== userId &&
+        !currentFriends.includes(id) &&
         !excludedIds.includes(id)
       );
 
@@ -373,6 +373,52 @@ export class FriendshipService {
       suggestions: validSuggestions
     };
   }
+  async checkFriendshipStatus(currentUserId: number, targetUserId: number) {
+    const friendship = await this.friendshipRepo.findOne({
+      where: [
+        { userOne: { id: currentUserId }, userTwo: { id: targetUserId } },
+        { userOne: { id: targetUserId }, userTwo: { id: currentUserId } }
+      ],
+      relations: ['userOne', 'userTwo'],
+    });
 
+    if (!friendship) {
+      return {
+        status: 'not_friend',
+        message: 'Chưa là bạn bè'
+      };
+    }
+
+    if (friendship.status === 'blocked') {
+      return {
+        status: 'blocked',
+        message: 'Đã bị chặn hoặc đã chặn'
+      };
+    }
+
+    if (friendship.status === 'accepted') {
+      return {
+        status: 'friend',
+        message: 'Đã là bạn bè',
+        friendshipId: friendship.id
+      };
+    }
+
+    if (friendship.status === 'pending') {
+      if (friendship.userOne.id === currentUserId) {
+        return {
+          status: 'pending',
+          message: 'Đã gửi lời mời kết bạn',
+          friendshipId: friendship.id
+        };
+      } else {
+        return {
+          status: 'waiting',
+          message: 'Đã nhận được lời mời kết bạn',
+          friendshipId: friendship.id
+        };
+      }
+    }
+  }
 
 }
