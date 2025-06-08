@@ -14,6 +14,7 @@ import { Like } from './like.entity';
 import { Message } from './message.entity';
 import { Friendship } from './friendship.entity';
 import { Call } from './call.entity';
+import { Notification } from './notification.entity';
 
 
 @Entity()
@@ -28,7 +29,7 @@ export class User {
   last_name: string; // familyName từ Google
 
   @Column({ nullable: true })
-  username: string;  
+  username: string;
 
   @Column({ unique: true })
   email: string;
@@ -48,7 +49,7 @@ export class User {
   @Column({ type: 'enum', enum: ['local', 'google'], default: 'local' })
   provider: 'local' | 'google';
   @Column({ type: 'text', nullable: true })
-  access_token: string;  
+  access_token: string;
 
   // Một user có nhiều bài viết
   @OneToMany(() => Post, post => post.user)
@@ -83,4 +84,8 @@ export class User {
 
   @OneToMany(() => Call, call => call.receiver)
   callsReceived: Call[];
+
+  //thông báo
+  @OneToMany(() => Notification, notification => notification.user)
+  notifications: Notification[];
 }
