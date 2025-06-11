@@ -7,8 +7,8 @@ export class NotificationController {
     constructor(private readonly notificationService: NotificationService) { }
 
     @Post('send')
-    async sendToUser(@Body() body: { userId: number; message: string; url?: string }) {
-        await this.notificationService.notifyUser(body.userId, body.message, body.url);
+    async sendToUser(@Body() body: { userId: number; message: string; url?: string, avt: string }) {
+        await this.notificationService.notifyUser(body.userId, body.message, body.url, body.avt);
         return { status: 'ok' };
     }
 

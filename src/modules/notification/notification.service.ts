@@ -10,12 +10,12 @@ export class NotificationService {
     @InjectRepository(Notification)
     private notificationRepo: Repository<Notification>,
     private gateway: NotificationGateway,
-  ) {}
+  ) { }
 
-  async notifyUser(userId: number, message: string, url?: string) {
-    const notification = this.notificationRepo.create({ userId, message, url });
+  async notifyUser(userId: number, message: string, url?: string, avt?: string) {
+    const notification = this.notificationRepo.create({ userId, message, url, avt });
     const saved = await this.notificationRepo.save(notification);
-    this.gateway.sendToUserSocket(userId, saved);  
+    this.gateway.sendToUserSocket(userId, saved);
     return saved;
   }
 
@@ -25,13 +25,13 @@ export class NotificationService {
     this.gateway.sendToAllSocket(saved);
     return saved;
   }
-  async getAllNotificationOfUser(userId: number){
-    if(!userId){
-        throw new NotFoundException("user không hợp lệ")
+  async getAllNotificationOfUser(userId: number) {
+    if (!userId) {
+      throw new NotFoundException("user không hợp lệ")
     }
     const notification = this.notificationRepo.find({
-        where: {userId: userId},
-        order: {createdAt: 'DESC'}
+      where: { userId: userId },
+      order: { createdAt: 'DESC' }
 
     })
     return notification

@@ -30,6 +30,9 @@ export class Notification {
     @Column({ nullable: true })
     url: string;
 
+    @Column({ nullable: true })
+    avt: string
+
     @CreateDateColumn()
     createdAt: Date;
 }

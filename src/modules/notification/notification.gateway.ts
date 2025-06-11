@@ -45,7 +45,6 @@ export class NotificationGateway {
   @WebSocketServer()
   server: Server;
 
-  // ✅ Thêm subscribe để join vào room theo userId
   @SubscribeMessage('subscribeToUserNotifications')
   handleSubscribe(@MessageBody() userId: number, @ConnectedSocket() client: Socket) {
     const room = `user_${userId}`;
