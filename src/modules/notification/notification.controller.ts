@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { NotificationService } from "./notification.service";
 import { JwtAuthGuard } from "src/common/guards/jwt-auth.guard";
 @UseGuards(JwtAuthGuard)
@@ -23,10 +23,20 @@ export class NotificationController {
     ) {
         return this.notificationService.getAllNotificationOfUser(req.user.userId)
     }
-    // @Get('all/:userId')
-    // getAllNotificationOfUser(
-    //     @Param('userId') userId: number
-    // ) {
-    //     return this.notificationService.getAllNotificationOfUser(userId)
-    // }
+    @Delete('delete/:id')
+    deleteNotification(
+        @Param('id') id: number
+    ) {
+        return this.notificationService.deleteNotification(id)
+    }
+
+    @Post('mark-read/:id')
+    markAsRead(@Param('id') id: number) {
+        return this.notificationService.markAsRead(id);
+    }
+
+    @Post('mark-all-read')
+    markAllAsRead(@Req() req) {
+        return this.notificationService.markAllAsRead(req.user.userId);
+    }
 }

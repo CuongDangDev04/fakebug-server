@@ -36,4 +36,43 @@ export class NotificationService {
     })
     return notification
   }
+  async deleteNotification(id: number) {
+    if (!id) {
+      throw new NotFoundException(`Thông báo với id ${id}`)
+    }
+    const noti = await this.notificationRepo.findOne({
+      where: { id: id }
+    })
+    console.log('id noti', noti);
+    await this.notificationRepo.delete({ id: id })
+    return ('Xoá thông báo thành công');
+  }
+
+  async markAsRead(id: number) {
+    if (!id) {
+      throw new NotFoundException("Thông báo không tồn tại");
+    }
+    const notification = await this.notificationRepo.findOne({
+      where: { id }
+    });
+    if (!notification) {
+      throw new NotFoundException("Thông báo không tồn tại");
+    }
+    notification.isRead = true;
+    return await this.notificationRepo.save(notification);
+  }
+
+  async markAllAsRead(userId: number) {
+    if (!userId) {
+      throw new NotFoundException("User không hợp lệ");
+    }
+    await this.notificationRepo
+      .createQueryBuilder()
+      .update(Notification)
+      .set({ isRead: true })
+      .where("userId = :userId", { userId })
+      .execute();
+
+    return "Đã đánh dấu tất cả thông báo là đã đọc";
+  }
 }
