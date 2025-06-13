@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../user/user.service';
 import { RegisterUserDto } from './dto/register-user.dto';
@@ -46,17 +46,34 @@ export class AuthService {
     }
 
     const payload = { sub: user.id, email: user.email, role: user.role };
-    const access_token = this.jwtService.sign(payload);
-    // Cập nhật access_token vào DB
+
+    // Tạo access token (15 phút)
+    const access_token = this.jwtService.sign(payload, {
+      expiresIn: '5s',
+    });
+
+    // Tạo refresh token (7 ngày)
+    const refresh_token_raw = this.jwtService.sign(payload, {
+      expiresIn: '60s',
+      secret: process.env.JWT_REFRESH_SECRET || 'refresh_secret',
+    });
+
+    // Mã hóa refresh token để lưu vào DB
+    const refresh_token_hashed = await bcrypt.hash(refresh_token_raw, 10);
+
+    // Cập nhật vào DB
     user.access_token = access_token;
+    user.refresh_token = refresh_token_hashed;
     await this.userService.update(user);
 
     return {
       message: 'Login successful',
       access_token,
+      refresh_token: refresh_token_raw,
       user,
     };
   }
+
 
 
   // Hàm đăng ký tài khoản local
@@ -108,7 +125,6 @@ export class AuthService {
   async loginLocal(loginUserDto: LoginUserDto) {
     const { emailOrUsername, password } = loginUserDto;
 
-    // Tìm theo email hoặc username
     const user = await this.userService.findByEmailOrUsername(emailOrUsername);
 
     if (!user || !user.password_hash) {
@@ -120,29 +136,45 @@ export class AuthService {
       throw new BadRequestException('Invalid email/username or password');
     }
 
+    // Payload dùng cho cả access và refresh
     const payload = { sub: user.id, email: user.email, role: user.role };
-    const jwtAccessToken = this.jwtService.sign(payload);
 
-    user.access_token = jwtAccessToken;
+    const access_token = this.jwtService.sign(payload, {
+      expiresIn: '1h',
+    });
+
+    // Tạo refresh token (7 ngày)
+    const refresh_token_raw = this.jwtService.sign(payload, {
+      expiresIn: '7d',
+      secret: process.env.JWT_REFRESH_SECRET || 'refresh_secret',
+    });
+
+    // Mã hóa refresh token trước khi lưu
+    const refresh_token_hashed = await bcrypt.hash(refresh_token_raw, 10);
+
+    // Lưu token vào DB
+    user.access_token = access_token;
+    user.refresh_token = refresh_token_hashed;
     await this.userService.update(user);
 
     return {
       message: 'Login successful',
-      access_token: jwtAccessToken,
+      access_token,
+      refresh_token: refresh_token_raw,
       user,
     };
   }
 
 
   async logout(userId: number) {
-    // Tìm user theo id
+    // Tìm user theo ID
     const user = await this.userService.findById(userId);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Không tìm thấy người dùng');
     }
 
-    // Xóa access_token khỏi DB
-    user.access_token = '';
+    // Xoá refresh token trong DB để chặn việc refresh sau này
+    user.refresh_token = '';
     await this.userService.update(user);
 
     return {
@@ -220,4 +252,41 @@ export class AuthService {
 
     return { message: 'Đổi mật khẩu thành công' };
   }
+  async refreshAccessToken(refreshToken: string) {
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || 'refresh_secret',
+      });
+
+      const user = await this.userService.findById(payload.sub);
+      if (!user || !user.refresh_token) {
+        throw new BadRequestException('Không tìm thấy người dùng hoặc token không hợp lệ');
+      }
+
+      const isTokenMatch = await bcrypt.compare(refreshToken, user.refresh_token);
+      if (!isTokenMatch) {
+        throw new BadRequestException('Refresh token không khớp');
+      }
+
+      const newAccessToken = this.jwtService.sign(
+        {
+          sub: user.id,
+          email: user.email,
+          role: user.role,
+        },
+        { expiresIn: '5s' },
+      );
+
+      user.access_token = newAccessToken;
+      await this.userService.update(user);
+
+      return {
+        message: 'Cấp lại access token thành công',
+        access_token: newAccessToken,
+      };
+    } catch (err) {
+      throw new UnauthorizedException('Refresh token không hợp lệ hoặc đã hết hạn');
+    }
+  }
+
 }

@@ -51,6 +51,9 @@ export class User {
   @Column({ type: 'text', nullable: true })
   access_token: string;
 
+  @Column({ type: 'text', nullable: true })
+  refresh_token: string;  
+
   // Một user có nhiều bài viết
   @OneToMany(() => Post, post => post.user)
   posts: Post[];

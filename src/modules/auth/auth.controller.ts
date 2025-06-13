@@ -22,11 +22,12 @@ export class AuthController {
   @UseGuards(AuthGuard('google'))
   async googleAuthRedirect(@Req() req, @Res() res: Response) {
     const result = await this.authService.loginWithGoogle(req.user);
-    
+
     // Chuyển hướng về FE với token và user data trong URL
     const redirectUrl = new URL('http://localhost:5173/google/callback');
-    redirectUrl.searchParams.append('token', result.access_token);
-    
+    redirectUrl.searchParams.append('access_token', result.access_token);
+    redirectUrl.searchParams.append('refresh_token', result.refresh_token);
+    redirectUrl.searchParams.append('user', JSON.stringify(result.user));
     return res.redirect(redirectUrl.toString());
   }
 
@@ -54,7 +55,10 @@ export class AuthController {
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
   }
-
+  @Post('refresh-token')
+  async refreshAccessToken(@Body() body: { refresh_token: string }) {
+    return this.authService.refreshAccessToken(body.refresh_token);
+  }
   //test phân quyền ////////////////////////////////
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admn')

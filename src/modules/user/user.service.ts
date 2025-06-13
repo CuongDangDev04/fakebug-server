@@ -108,7 +108,6 @@ export class UserService {
             .leftJoinAndSelect('friendship.userTwo', 'userTwo')
             .getMany();
 
-        // Get friendship status between viewer and profile owner
         const friendshipStatus = await this.friendshipRepo
             .createQueryBuilder('friendship')
             .where('(friendship.userOneId = :viewerId AND friendship.userTwoId = :userId) OR (friendship.userOneId = :userId AND friendship.userTwoId = :viewerId)', 
