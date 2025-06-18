@@ -92,4 +92,18 @@ export class FriendshipController {
   ) {
     return this.friendshipService.checkFriendshipStatus(req.user.userId, targetId);
   }
+
+  @Get('user/:userId/friends')
+  async getUserFriends(@Param('userId', ParseIntPipe) userId: number) {
+    return this.friendshipService.getUserFriends(userId);
+  }
+  
+  @UseGuards(JwtAuthGuard)
+  @Post('status-batch')
+  async getFriendshipStatusBatch(
+    @Req() req,
+    @Body() body: { userIds: number[] }
+  ) {
+    return this.friendshipService.getFriendshipStatusBatch(req.user.userId, body.userIds);
+  }
 }

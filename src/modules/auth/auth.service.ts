@@ -49,12 +49,12 @@ export class AuthService {
 
     // Tạo access token (15 phút)
     const access_token = this.jwtService.sign(payload, {
-      expiresIn: '5s',
+      expiresIn: '3h',
     });
 
     // Tạo refresh token (7 ngày)
     const refresh_token_raw = this.jwtService.sign(payload, {
-      expiresIn: '60s',
+      expiresIn: '7d',
       secret: process.env.JWT_REFRESH_SECRET || 'refresh_secret',
     });
 
@@ -274,7 +274,7 @@ export class AuthService {
           email: user.email,
           role: user.role,
         },
-        { expiresIn: '5s' },
+        { expiresIn: '3h' },
       );
 
       user.access_token = newAccessToken;

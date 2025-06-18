@@ -420,5 +420,71 @@ export class FriendshipService {
       }
     }
   }
+  async getUserFriends(targetUserId: number) {
+    const friendships = await this.friendshipRepo.find({
+      where: [
+        { userOne: { id: targetUserId }, status: 'accepted' },
+        { userTwo: { id: targetUserId }, status: 'accepted' },
+      ],
+      relations: ['userOne', 'userTwo'],
+    });
 
+    const friends = await Promise.all(friendships.map(async (friendship) => {
+      const friend = friendship.userOne.id === targetUserId ? friendship.userTwo : friendship.userOne;
+      console.log('f',friend)
+      const mutualFriends = await this.getMutualFriends(targetUserId, friend.id);
+      console.log('bạn chung', mutualFriends)
+      return {
+        id: friend.id,
+        firstName: friend.first_name,
+        lastName: friend.last_name,
+        avatar: friend.avatar_url,
+        mutualCount: mutualFriends.total,
+        friendshipStatus: 'FRIEND'
+      };
+    }));
+
+    return {
+      total: friends.length,
+      friends
+    };
+  }
+
+  async getFriendshipStatusBatch(currentUserId: number, userIds: number[]) {
+    const friendshipStatuses = await Promise.all(
+      userIds.map(async (targetId) => {
+        const friendship = await this.friendshipRepo.findOne({
+          where: [
+            { userOne: { id: currentUserId }, userTwo: { id: targetId } },
+            { userOne: { id: targetId }, userTwo: { id: currentUserId } }
+          ],
+          relations: ['userOne', 'userTwo'],
+        });
+
+        const mutualFriends = await this.getMutualFriends(currentUserId, targetId);
+        const user = await this.userRepo.findOne({ where: { id: targetId } });
+
+        let status: 'FRIEND' | 'NOT_FRIEND' | 'PENDING_SENT' | 'PENDING_RECEIVED' = 'NOT_FRIEND';
+
+        if (friendship) {
+          if (friendship.status === 'accepted') {
+            status = 'FRIEND';
+          } else if (friendship.status === 'pending') {
+            status = friendship.userOne.id === currentUserId ? 'PENDING_SENT' : 'PENDING_RECEIVED';
+          }
+        }
+
+        return {
+          id: targetId,
+          firstName: user?.first_name,
+          lastName: user?.last_name,
+          avatar: user?.avatar_url,
+          mutualCount: mutualFriends.total,
+          friendshipStatus: status
+        };
+      })
+    );
+
+    return friendshipStatuses;
+  }
 }
