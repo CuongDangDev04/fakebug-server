@@ -39,4 +39,8 @@ export class NotificationController {
     markAllAsRead(@Req() req) {
         return this.notificationService.markAllAsRead(req.user.userId);
     }
+    @Get('unread')
+    getUnreadNotification(@Req() req){
+        return this.notificationService.getUnreadNotification(req.user.userId)
+    }
 }

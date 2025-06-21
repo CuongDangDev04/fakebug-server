@@ -75,4 +75,17 @@ export class NotificationService {
 
     return "Đã đánh dấu tất cả thông báo là đã đọc";
   }
+  async getUnreadNotification(userId: number) {
+    if(!userId){
+      throw new  NotFoundException("UserId không hợp lệ");
+    };
+    const noti = await this.notificationRepo.find({
+      where: { userId: userId, isRead: false },
+
+    })
+    const total = noti.length;
+    return {
+      total, noti
+    }
+  }
 }

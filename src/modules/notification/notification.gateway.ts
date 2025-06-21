@@ -1,28 +1,3 @@
-// import { WebSocketGateway, WebSocketServer } from "@nestjs/websockets";
-// import { Server } from "socket.io";
-// import { Notification } from "src/entities/notification.entity";
-
-// @WebSocketGateway({
-//   namespace: '/notifications',
-//   cors: {
-//     origin: 'http://localhost:5173',
-//     methods: ['GET', 'POST'],
-//     credentials: true,
-//   },
-// })
-// export class NotificationGateway {
-//   @WebSocketServer()
-//   server: Server;
-
-//   sendToUserSocket(userId: number, notification: Notification) {
-//     this.server.to(`user_${userId}`).emit('newNotification', notification);
-//   }
-
-//   sendToAllSocket(notification: Notification) {
-//     this.server.emit('newNotification', notification);
-//   }
-// }
-
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -36,7 +11,7 @@ import { Notification } from 'src/entities/notification.entity';
 @WebSocketGateway({
   namespace: '/notifications',
   cors: {
-    origin: 'http://localhost:5173',
+    origin: 'http://localhost:3000',
     methods: ['GET', 'POST'],
     credentials: true,
   },
