@@ -106,4 +106,10 @@ export class FriendshipController {
   ) {
     return this.friendshipService.getFriendshipStatusBatch(req.user.userId, body.userIds);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('blocked')
+  async getBlockedUsers(@Req() req: any) {
+    return this.friendshipService.getBlockedUsers(req.user.userId);
+  }
 }

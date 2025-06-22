@@ -487,4 +487,32 @@ export class FriendshipService {
 
     return friendshipStatuses;
   }
+
+  async getBlockedUsers(userId: number) {
+    // Lấy tất cả các mối quan hệ mà userId là người chặn hoặc bị chặn với status 'blocked'
+    const blockedFriendships = await this.friendshipRepo.find({
+      where: [
+        { userOne: { id: userId }, status: 'blocked' },
+        { userTwo: { id: userId }, status: 'blocked' },
+      ],
+      relations: ['userOne', 'userTwo'],
+    });
+
+    // Lấy user bị chặn (không phải userId)
+    const blockedUsers = blockedFriendships.map(f =>
+      f.userOne.id === userId ? f.userTwo : f.userOne
+    );
+
+    const formatted = blockedUsers.map(user => ({
+      id: user.id,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      avatar: user.avatar_url,
+    }));
+
+    return {
+      total: formatted.length,
+      blocked: formatted,
+    };
+  }
 }
