@@ -9,7 +9,7 @@ async function bootstrap() {
   });
   app.setGlobalPrefix('api');
   try {
-    await app.listen(process.env.PORT || 5000);
+    await app.listen(process.env.PORT || 5001);
     console.log(`Application is running on: ${await app.getUrl()}`);
   } catch (error) {
     console.error('Không thể khởi động ứng dụng:', error);

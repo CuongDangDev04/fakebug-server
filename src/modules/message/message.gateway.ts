@@ -24,6 +24,9 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @WebSocketServer()
   server: Server;
 
+  // Map userId -> Set<socketId>
+  private onlineUsers: Map<number, Set<string>> = new Map();
+
   constructor(private readonly messageService: MessageService) { }
 
   // Khi user kết nối
@@ -31,11 +34,42 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
     const userId = Number(client.handshake.query.userId);
     if (userId) {
       client.join(`user_${userId}`);
+      // Thêm socketId vào Map
+      if (!this.onlineUsers.has(userId)) {
+        this.onlineUsers.set(userId, new Set());
+      }
+      this.onlineUsers.get(userId)!.add(client.id);
+
+      // Gửi danh sách user online cho tất cả client
+      this.broadcastOnlineUsers();
     }
   }
 
   // Khi user disconnect
   handleDisconnect(client: Socket) {
+    // Tìm userId theo socketId
+    for (const [userId, sockets] of this.onlineUsers.entries()) {
+      if (sockets.has(client.id)) {
+        sockets.delete(client.id);
+        if (sockets.size === 0) {
+          this.onlineUsers.delete(userId);
+        }
+        break;
+      }
+    }
+    // Gửi lại danh sách user online
+    this.broadcastOnlineUsers();
+  }
+
+  // Gửi danh sách user online cho tất cả client
+  private broadcastOnlineUsers() {
+    const onlineUserIds = Array.from(this.onlineUsers.keys());
+    this.server.emit('onlineUsers', onlineUserIds);
+  }
+
+  // API lấy danh sách user online (nếu cần)
+  getOnlineUsers(): number[] {
+    return Array.from(this.onlineUsers.keys());
   }
 
   // Xử lý gửi tin nhắn
@@ -61,4 +95,4 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
   }
 
 }
- 
+
