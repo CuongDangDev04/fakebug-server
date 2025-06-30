@@ -59,11 +59,23 @@ export class MessageService {
           receiverId: msg.receiver.id,
           friendId: friend.id,
           friendName: friend.first_name + ' ' + friend.last_name,
-          avatar_url: friend.avatar_url ,
+          avatar_url: friend.avatar_url,
         });
       }
     });
 
     return Array.from(friendLastMessageMap.values());
   }
+  async markMessagesAsRead(senderId: number, receiverId: number) {
+    await this.messageRepository.update(
+      {
+        sender: { id: senderId },
+        receiver: { id: receiverId },
+        is_read: false
+      },
+      {
+        is_read: true
+      }
+    )
   }
+}

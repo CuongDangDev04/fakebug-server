@@ -112,4 +112,10 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
     return message;
   }
+  async handleMarkAsRead(senderId:number, receiverId: number){
+    this.server.to(`user_${senderId}`).emit('message-read', {
+      from: receiverId,
+      to: senderId
+    })
+  }
 }

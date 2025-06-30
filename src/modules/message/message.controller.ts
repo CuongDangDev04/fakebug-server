@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Query, Param, Req, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query, Param, Req, UseGuards, Put } from '@nestjs/common';
 import { MessageService } from './message.service';
 import { MessageGateway } from './message.gateway';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
@@ -39,4 +39,12 @@ export class MessageController {
   async getFriendMessages(@Req() req) {
     return this.messageService.getLastMessageWithFriends(req.user.userId);
   }
+  @UseGuards(JwtAuthGuard)
+  @Put('mark-as-read/:friendId')
+  async markAsRead(@Req() req, @Param('friendId') friendId:number){
+      await this.messageService.markMessagesAsRead(friendId, req.user.userId)
+      await this.messageGateway.handleMarkAsRead(friendId, req.user.userId)
+      return {success: true}
+  }
+
 }
