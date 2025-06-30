@@ -1,6 +1,7 @@
-import { Controller, Post, Body, Get, Query, Param } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query, Param, Req, UseGuards } from '@nestjs/common';
 import { MessageService } from './message.service';
 import { MessageGateway } from './message.gateway';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 
 @Controller('message')
 export class MessageController {
@@ -32,5 +33,10 @@ export class MessageController {
     const id = Number(userId);
     const lastSeen = this.messageGateway.getLastSeen(id);
     return { userId: id, lastSeen };
+  }
+  @UseGuards(JwtAuthGuard)
+  @Get('friend-messages')
+  async getFriendMessages(@Req() req) {
+    return this.messageService.getLastMessageWithFriends(req.user.userId);
   }
 }
