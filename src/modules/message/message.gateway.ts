@@ -112,10 +112,24 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
     return message;
   }
-  async handleMarkAsRead(senderId:number, receiverId: number){
-    this.server.to(`user_${senderId}`).emit('message-read', {
-      from: receiverId,
-      to: senderId
-    })
+  // Đánh dấu đã đọc: gửi event cho người gửi (fromUserId) biết rằng người nhận (toUserId) đã đọc
+  handleMarkAsRead(fromUserId: number, toUserId: number) {
+    // fromUserId: người gửi tin nhắn
+    // toUserId: người nhận đã đọc
+    this.server.to(`user_${fromUserId}`).emit('message-read', {
+      from: toUserId,
+      to: fromUserId
+    });
+  }
+
+  @SubscribeMessage('markAsRead')
+  async handleMarkAsReadSocket(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { fromUserId: number; toUserId: number }
+  ) {
+    // Cập nhật DB: đánh dấu các tin nhắn từ fromUserId gửi tới toUserId là đã đọc
+    await this.messageService.markMessagesAsRead(data.fromUserId, data.toUserId);
+    // Gửi event cho người gửi biết đã được đọc
+    this.handleMarkAsRead(data.fromUserId, data.toUserId);
   }
 }

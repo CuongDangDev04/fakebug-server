@@ -30,6 +30,7 @@ export class MessageService {
       ],
       order: { sent_at: 'ASC' },
       relations: ['sender', 'receiver'],
+      select: ['id', 'content', 'sent_at', 'is_read', 'sender', 'receiver'], // đảm bảo trả về is_read
     });
   }
   async getLastMessageWithFriends(userId: number) {
@@ -67,6 +68,7 @@ export class MessageService {
     return Array.from(friendLastMessageMap.values());
   }
   async markMessagesAsRead(senderId: number, receiverId: number) {
+    // Đánh dấu tất cả tin nhắn từ senderId gửi tới receiverId là đã đọc
     await this.messageRepository.update(
       {
         sender: { id: senderId },
@@ -76,6 +78,6 @@ export class MessageService {
       {
         is_read: true
       }
-    )
+    );
   }
 }

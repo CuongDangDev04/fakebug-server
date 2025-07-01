@@ -43,7 +43,7 @@ export class MessageController {
   @Put('mark-as-read/:friendId')
   async markAsRead(@Req() req, @Param('friendId') friendId:number){
       await this.messageService.markMessagesAsRead(friendId, req.user.userId)
-      await this.messageGateway.handleMarkAsRead(friendId, req.user.userId)
+      await this.messageGateway.handleMarkAsRead(req.user.userId, friendId)
       return {success: true}
   }
 
