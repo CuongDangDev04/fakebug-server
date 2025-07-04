@@ -8,15 +8,17 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     super({
       clientID: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      callbackURL: 'http://localhost:5001/api/auth/google/redirect',
+      callbackURL: `${process.env.BACKEND_URL}/api/auth/google/redirect`,  
       scope: ['email', 'profile'],
     });
   }
+
   authorizationParams() {
     return {
-      prompt: 'select_account', // Bắt buộc chọn tài khoản
+      prompt: 'select_account',
     };
   }
+
   async validate(accessToken: string, refreshToken: string, profile: any) {
     const { name, emails, photos } = profile;
 
@@ -28,5 +30,4 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       provider: profile.provider,
     };
   }
-
 }

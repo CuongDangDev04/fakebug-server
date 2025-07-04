@@ -24,11 +24,13 @@ export class AuthController {
     const result = await this.authService.loginWithGoogle(req.user);
 
     // Chuyển hướng về FE với token và user data trong URL
-    const redirectUrl = new URL('http://localhost:3000/google/callback');
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const redirectUrl = new URL(`${frontendUrl}/google/callback`);
     redirectUrl.searchParams.append('access_token', result.access_token);
     redirectUrl.searchParams.append('refresh_token', result.refresh_token);
     redirectUrl.searchParams.append('user', JSON.stringify(result.user));
     return res.redirect(redirectUrl.toString());
+
   }
 
   @Post('register')
