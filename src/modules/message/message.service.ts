@@ -22,17 +22,20 @@ export class MessageService {
     return this.messageRepository.save(message);
   }
 
-  async getMessagesBetweenUsers(userId1: number, userId2: number) {
-    return this.messageRepository.find({
-      where: [
-        { sender: { id: userId1 }, receiver: { id: userId2 } },
-        { sender: { id: userId2 }, receiver: { id: userId1 } },
-      ],
-      order: { sent_at: 'ASC' },
-      relations: ['sender', 'receiver'],
-      select: ['id', 'content', 'sent_at', 'is_read', 'sender', 'receiver'], // đảm bảo trả về is_read
-    });
-  }
+  async getMessagesBetweenUsers(userId1: number, userId2: number, limit = 10, offset = 0) {
+  return this.messageRepository.find({
+    where: [
+      { sender: { id: userId1 }, receiver: { id: userId2 } },
+      { sender: { id: userId2 }, receiver: { id: userId1 } },
+    ],
+    order: { sent_at: 'DESC' }, // lấy mới nhất trước
+    skip: offset,
+    take: limit,
+    relations: ['sender', 'receiver'],
+    select: ['id', 'content', 'sent_at', 'is_read', 'sender', 'receiver'],
+  });
+}
+
   async getLastMessageWithFriends(userId: number) {
     // Lấy tất cả các tin nhắn mà user này là sender hoặc receiver, chỉ lấy id, content, sent_at, senderId, receiverId
     const messages = await this.messageRepository.find({

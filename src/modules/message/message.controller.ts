@@ -7,8 +7,8 @@ import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 export class MessageController {
   constructor(
     private readonly messageService: MessageService,
-    private readonly messageGateway: MessageGateway 
-  ) {}
+    private readonly messageGateway: MessageGateway
+  ) { }
 
   @Post('send')
   async sendMessage(
@@ -23,9 +23,12 @@ export class MessageController {
   async getMessagesBetweenUsers(
     @Query('userId1') userId1: number,
     @Query('userId2') userId2: number,
+    @Query('limit') limit: number = 10,
+    @Query('offset') offset: number = 0,
   ) {
-    return this.messageService.getMessagesBetweenUsers(userId1, userId2);
+    return this.messageService.getMessagesBetweenUsers(userId1, userId2, limit, offset);
   }
+
 
   // lấy lastSeen theo userId
   @Get('last-seen/:userId')
@@ -41,10 +44,10 @@ export class MessageController {
   }
   @UseGuards(JwtAuthGuard)
   @Put('mark-as-read/:friendId')
-  async markAsRead(@Req() req, @Param('friendId') friendId:number){
-      await this.messageService.markMessagesAsRead(friendId, req.user.userId)
-      await this.messageGateway.handleMarkAsRead(req.user.userId, friendId)
-      return {success: true}
+  async markAsRead(@Req() req, @Param('friendId') friendId: number) {
+    await this.messageService.markMessagesAsRead(friendId, req.user.userId)
+    await this.messageGateway.handleMarkAsRead(req.user.userId, friendId)
+    return { success: true }
   }
 
 }
