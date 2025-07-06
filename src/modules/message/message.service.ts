@@ -39,7 +39,7 @@ export class MessageService {
   async getLastMessageWithFriends(userId: number) {
     // Lấy tất cả các tin nhắn mà user này là sender hoặc receiver, chỉ lấy id, content, sent_at, senderId, receiverId
     const messages = await this.messageRepository.find({
-      select: ['id', 'content', 'sent_at', 'sender', 'receiver'],
+      select: ['id', 'content', 'sent_at', 'sender', 'receiver', 'is_read'],
       where: [
         { sender: { id: userId } },
         { receiver: { id: userId } },
@@ -49,11 +49,20 @@ export class MessageService {
     });
 
     const friendLastMessageMap = new Map<number, Partial<any>>();
+    const unreadCountMap = new Map<number, number>();
+    let totalUnreadCount = 0;
 
     messages.forEach(msg => {
       const isSenderMe = msg.sender.id === userId;
       const friend = isSenderMe ? msg.receiver : msg.sender;
       const friendId = friend.id;
+
+      // Đếm tổng số tin nhắn chưa đọc gửi tới userId từ từng bạn bè
+      if (!isSenderMe && !msg.is_read) {
+        totalUnreadCount += 1;
+        unreadCountMap.set(friendId, (unreadCountMap.get(friendId) || 0) + 1);
+      }
+
       if (!friendLastMessageMap.has(friendId)) {
         friendLastMessageMap.set(friendId, {
           id: msg.id,
@@ -64,12 +73,34 @@ export class MessageService {
           friendId: friend.id,
           friendName: friend.first_name + ' ' + friend.last_name,
           avatar_url: friend.avatar_url,
+          is_read: isSenderMe ? true : msg.is_read, // Nếu là mình gửi thì luôn là đã đọc, còn lại lấy trạng thái thực
+          unreadCount: 0, // sẽ cập nhật bên dưới
         });
       }
     });
 
-    return Array.from(friendLastMessageMap.values());
+    // Gán unreadCount cho từng bạn bè
+    friendLastMessageMap.forEach((value, friendId) => {
+      value.unreadCount = unreadCountMap.get(friendId) || 0;
+    });
+
+    return {
+      friends: Array.from(friendLastMessageMap.values()),
+      totalUnreadCount,
+    };
   }
+
+  async getTotalUnreadCount(userId: number) {
+    // Đếm tổng số tin nhắn chưa đọc gửi tới userId từ tất cả bạn bè
+    const count = await this.messageRepository.count({
+      where: {
+        receiver: { id: userId },
+        is_read: false,
+      },
+    });
+    return { totalUnreadCount: count };
+  }
+
   async markMessagesAsRead(senderId: number, receiverId: number) {
     // Đánh dấu tất cả tin nhắn từ senderId gửi tới receiverId là đã đọc
     await this.messageRepository.update(

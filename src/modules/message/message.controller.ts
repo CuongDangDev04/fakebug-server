@@ -42,6 +42,12 @@ export class MessageController {
   async getFriendMessages(@Req() req) {
     return this.messageService.getLastMessageWithFriends(req.user.userId);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('total-unread')
+  async getTotalUnread(@Req() req) {
+    return this.messageService.getTotalUnreadCount(req.user.userId);
+  }
   @UseGuards(JwtAuthGuard)
   @Put('mark-as-read/:friendId')
   async markAsRead(@Req() req, @Param('friendId') friendId: number) {
