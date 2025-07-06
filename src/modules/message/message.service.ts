@@ -23,18 +23,18 @@ export class MessageService {
   }
 
   async getMessagesBetweenUsers(userId1: number, userId2: number, limit = 10, offset = 0) {
-  return this.messageRepository.find({
-    where: [
-      { sender: { id: userId1 }, receiver: { id: userId2 } },
-      { sender: { id: userId2 }, receiver: { id: userId1 } },
-    ],
-    order: { sent_at: 'DESC' }, // lấy mới nhất trước
-    skip: offset,
-    take: limit,
-    relations: ['sender', 'receiver'],
-    select: ['id', 'content', 'sent_at', 'is_read', 'sender', 'receiver'],
-  });
-}
+    return this.messageRepository.find({
+      where: [
+        { sender: { id: userId1 }, receiver: { id: userId2 } },
+        { sender: { id: userId2 }, receiver: { id: userId1 } },
+      ],
+      order: { sent_at: 'DESC' }, // lấy mới nhất trước
+      skip: offset,
+      take: limit,
+      relations: ['sender', 'receiver'],
+      select: ['id', 'content', 'sent_at', 'is_read', 'sender', 'receiver', 'is_revoked'],
+    });
+  }
 
   async getLastMessageWithFriends(userId: number) {
     // Lấy tất cả các tin nhắn mà user này là sender hoặc receiver, chỉ lấy id, content, sent_at, senderId, receiverId
@@ -114,4 +114,25 @@ export class MessageService {
       }
     );
   }
+
+  async revokeMessage(messageId: number, userId: number) {
+    const message = await this.messageRepository.findOne({
+      where: { id: messageId },
+      relations: ['sender'],
+    });
+
+    if (!message) {
+      throw new Error('Message not found');
+    }
+
+    // Chỉ cho phép người gửi thu hồi
+    if (message.sender.id !== userId) {
+      throw new Error('Unauthorized to revoke this message');
+    }
+
+    // Thu hồi
+    message.is_revoked = true;
+    return this.messageRepository.save(message);
+  }
+
 }

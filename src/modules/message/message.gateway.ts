@@ -30,7 +30,7 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
   // lưu thời điểm offline gần nhất
   private lastSeenMap: Map<number, Date> = new Map();
 
-  constructor(private readonly messageService: MessageService) {}
+  constructor(private readonly messageService: MessageService) { }
 
   handleConnection(client: Socket) {
     const userId = Number(client.handshake.query.userId);
@@ -132,4 +132,27 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
     // Gửi event cho người gửi biết đã được đọc
     this.handleMarkAsRead(data.fromUserId, data.toUserId);
   }
+  async broadcastRevokeMessage(messageId: number, senderId: number, receiverId: number) {
+    this.server.to(`user_${senderId}`).emit('messageRevoked', { messageId });
+    this.server.to(`user_${receiverId}`).emit('messageRevoked', { messageId });
+  }
+
+  @SubscribeMessage('revokeMessage')
+  async handleRevokeMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { messageId: number }
+  ) {
+    // Lấy userId từ socket query thay vì từ client gửi lên
+    const userId = Number(client.handshake.query.userId);
+    const revokedMessage = await this.messageService.revokeMessage(data.messageId, userId);
+
+    // Gửi tới cả người gửi và người nhận
+    const { sender, receiver } = revokedMessage;
+
+    this.server.to(`user_${sender.id}`).emit('messageRevoked', { messageId: revokedMessage.id });
+    this.server.to(`user_${receiver.id}`).emit('messageRevoked', { messageId: revokedMessage.id });
+
+    return revokedMessage;
+  }
+
 }

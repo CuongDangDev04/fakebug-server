@@ -55,5 +55,20 @@ export class MessageController {
     await this.messageGateway.handleMarkAsRead(req.user.userId, friendId)
     return { success: true }
   }
+  
+  @UseGuards(JwtAuthGuard)
+  @Put('revoke/:messageId')
+  async revokeMessage(@Req() req, @Param('messageId') messageId: number) {
+    const message = await this.messageService.revokeMessage(messageId, req.user.userId);
+
+    await this.messageGateway.broadcastRevokeMessage(
+      message.id,
+      message.sender.id,
+      message.receiver.id
+    );
+
+    return { success: true };
+  }
+
 
 }

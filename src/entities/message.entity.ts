@@ -26,4 +26,7 @@ export class Message {
 
   @Column({ default: false })
   is_read: boolean;
+
+  @Column({ default: false })
+  is_revoked: boolean;
 }
