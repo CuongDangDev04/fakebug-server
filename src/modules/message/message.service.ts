@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Message } from '../../entities/message.entity';
 import { Brackets, Repository } from 'typeorm';
 import { User } from '../../entities/user.entity';
+import { MessageReaction } from 'src/entities/message-reaction.entity';
 
 @Injectable()
 export class MessageService {
@@ -11,6 +12,8 @@ export class MessageService {
     private readonly messageRepository: Repository<Message>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(MessageReaction)
+    private readonly reactionRepository: Repository<MessageReaction>,
   ) { }
 
   async sendMessage(senderId: number, receiverId: number, content: string) {
@@ -21,23 +24,13 @@ export class MessageService {
     return this.messageRepository.save(message);
   }
 
-  // async getMessagesBetweenUsers(userId1: number, userId2: number, limit = 10, offset = 0) {
-  //   return this.messageRepository.find({
-  //     where: [
-  //       { sender: { id: userId1 }, receiver: { id: userId2 } },
-  //       { sender: { id: userId2 }, receiver: { id: userId1 } },
-  //     ],
-  //     order: { sent_at: 'DESC' }, // lấy mới nhất trước
-  //     skip: offset,
-  //     take: limit,
-  //     relations: ['sender', 'receiver'],
-  //     select: ['id', 'content', 'sent_at', 'is_read', 'sender', 'receiver', 'is_revoked'],
-  //   });
-  // }
-  async getMessagesBetweenUsers(userId1: number, userId2: number, limit= 15, offset = 0) {
+
+  async getMessagesBetweenUsers(userId1: number, userId2: number, limit = 15, offset = 0) {
     return this.messageRepository.createQueryBuilder('message')
       .leftJoinAndSelect('message.sender', 'sender')
       .leftJoinAndSelect('message.receiver', 'receiver')
+      .leftJoinAndSelect('message.reactions', 'reaction')
+      .leftJoinAndSelect('reaction.user', 'reactionUser')
       .where(
         new Brackets(qb => {
           qb.where('sender.id = :userId1 AND receiver.id = :userId2', { userId1, userId2 })
@@ -62,6 +55,13 @@ export class MessageService {
         'receiver.first_name',
         'receiver.last_name',
         'receiver.avatar_url',
+        'reaction.id',
+        'reaction.emoji',
+        'reaction.create_at',
+        'reactionUser.id',
+        'reactionUser.first_name',
+        'reactionUser.last_name',
+        'reactionUser.avatar_url',
       ])
       .getMany();
   }
@@ -162,6 +162,33 @@ export class MessageService {
     // Thu hồi
     message.is_revoked = true;
     return this.messageRepository.save(message);
+  }
+  // Thêm hoặc cập nhật cảm xúc
+  async reactToMessage(messageId: number, userId: number, emoji: string) {
+    const message = await this.messageRepository.findOne({ where: { id: messageId } });
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+
+    if (!message || !user) throw new Error('Message or user not found');
+
+    const existing = await this.reactionRepository.findOne({
+      where: { message: { id: messageId }, user: { id: userId } },
+    });
+
+    if (existing) {
+      existing.emoji = emoji;
+      return this.reactionRepository.save(existing);
+    } else {
+      const reaction = this.reactionRepository.create({ message, user, emoji });
+      return this.reactionRepository.save(reaction);
+    }
+  }
+
+  // Xoá cảm xúc
+  async removeReaction(messageId: number, userId: number) {
+    await this.reactionRepository.delete({
+      message: { id: messageId },
+      user: { id: userId },
+    });
   }
 
 }

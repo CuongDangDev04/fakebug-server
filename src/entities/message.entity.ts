@@ -4,8 +4,10 @@ import {
   Column,
   ManyToOne,
   CreateDateColumn,
+  OneToMany,
 } from 'typeorm';
 import { User } from './user.entity';
+import { MessageReaction } from './message-reaction.entity';
 
 @Entity()
 export class Message {
@@ -29,4 +31,7 @@ export class Message {
 
   @Column({ default: false })
   is_revoked: boolean;
+
+  @OneToMany(() => MessageReaction, reaction => reaction.message)
+  reactions: MessageReaction[];
 }

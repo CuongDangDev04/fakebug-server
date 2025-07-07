@@ -15,6 +15,7 @@ import { Message } from './message.entity';
 import { Friendship } from './friendship.entity';
 import { Call } from './call.entity';
 import { Notification } from './notification.entity';
+import { MessageReaction } from './message-reaction.entity';
 
 
 @Entity()
@@ -52,7 +53,7 @@ export class User {
   access_token: string;
 
   @Column({ type: 'text', nullable: true })
-  refresh_token: string;  
+  refresh_token: string;
 
   // Một user có nhiều bài viết
   @OneToMany(() => Post, post => post.user)
@@ -91,4 +92,7 @@ export class User {
   //thông báo
   @OneToMany(() => Notification, notification => notification.user)
   notifications: Notification[];
+
+  @OneToMany(() => MessageReaction, reaction => reaction.user)
+  messageReactions: MessageReaction[];
 }

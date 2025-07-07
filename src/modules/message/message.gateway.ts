@@ -155,4 +155,45 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
     return revokedMessage;
   }
 
+  @SubscribeMessage('reactToMessage')
+  async handleReactToMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { messageId: number; emoji: string }
+  ) {
+    const userId = Number(client.handshake.query.userId);
+    const reaction = await this.messageService.reactToMessage(data.messageId, userId, data.emoji);
+
+    // Gửi tới tất cả user liên quan (sender & receiver)
+    const message = await this.messageService['messageRepository'].findOne({
+      where: { id: data.messageId },
+      relations: ['sender', 'receiver'],
+    });
+
+    const { sender, receiver } = message!;
+    this.server.to(`user_${sender.id}`).emit('messageReacted', { messageId: data.messageId, userId, emoji: data.emoji });
+    this.server.to(`user_${receiver.id}`).emit('messageReacted', { messageId: data.messageId, userId, emoji: data.emoji });
+    this.server.to(`user_${sender.id}`).emit('reactToMessage', {});
+    this.server.to(`user_${receiver.id}`).emit('reactToMessage', {});
+
+  }
+
+  @SubscribeMessage('removeReaction')
+  async handleRemoveReaction(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { messageId: number }
+  ) {
+    const userId = Number(client.handshake.query.userId);
+    await this.messageService.removeReaction(data.messageId, userId);
+
+    const message = await this.messageService['messageRepository'].findOne({
+      where: { id: data.messageId },
+      relations: ['sender', 'receiver'],
+    });
+
+    const { sender, receiver } = message!;
+    this.server.to(`user_${sender.id}`).emit('messageReactionRemoved', { messageId: data.messageId, userId });
+    this.server.to(`user_${receiver.id}`).emit('messageReactionRemoved', { messageId: data.messageId, userId });
+  }
+
+
 }
