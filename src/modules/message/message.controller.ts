@@ -23,7 +23,7 @@ export class MessageController {
   async getMessagesBetweenUsers(
     @Query('userId1') userId1: number,
     @Query('userId2') userId2: number,
-    @Query('limit') limit: number = 10,
+    @Query('limit') limit: number = 15,
     @Query('offset') offset: number = 0,
   ) {
     return this.messageService.getMessagesBetweenUsers(userId1, userId2, limit, offset);

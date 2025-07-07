@@ -1,9 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Message } from '../../entities/message.entity';
-import { Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
 import { User } from '../../entities/user.entity';
-import { AnyARecord } from 'dns';
 
 @Injectable()
 export class MessageService {
@@ -22,20 +21,50 @@ export class MessageService {
     return this.messageRepository.save(message);
   }
 
-  async getMessagesBetweenUsers(userId1: number, userId2: number, limit = 10, offset = 0) {
-    return this.messageRepository.find({
-      where: [
-        { sender: { id: userId1 }, receiver: { id: userId2 } },
-        { sender: { id: userId2 }, receiver: { id: userId1 } },
-      ],
-      order: { sent_at: 'DESC' }, // lấy mới nhất trước
-      skip: offset,
-      take: limit,
-      relations: ['sender', 'receiver'],
-      select: ['id', 'content', 'sent_at', 'is_read', 'sender', 'receiver', 'is_revoked'],
-    });
-  }
+  // async getMessagesBetweenUsers(userId1: number, userId2: number, limit = 10, offset = 0) {
+  //   return this.messageRepository.find({
+  //     where: [
+  //       { sender: { id: userId1 }, receiver: { id: userId2 } },
+  //       { sender: { id: userId2 }, receiver: { id: userId1 } },
+  //     ],
+  //     order: { sent_at: 'DESC' }, // lấy mới nhất trước
+  //     skip: offset,
+  //     take: limit,
+  //     relations: ['sender', 'receiver'],
+  //     select: ['id', 'content', 'sent_at', 'is_read', 'sender', 'receiver', 'is_revoked'],
+  //   });
+  // }
+  async getMessagesBetweenUsers(userId1: number, userId2: number, limit= 15, offset = 0) {
+    return this.messageRepository.createQueryBuilder('message')
+      .leftJoinAndSelect('message.sender', 'sender')
+      .leftJoinAndSelect('message.receiver', 'receiver')
+      .where(
+        new Brackets(qb => {
+          qb.where('sender.id = :userId1 AND receiver.id = :userId2', { userId1, userId2 })
+            .orWhere('sender.id = :userId2 AND receiver.id = :userId1', { userId1, userId2 })
 
+        }),
+      )
+      .orderBy('message.sent_at', 'DESC')
+      .skip(offset)
+      .take(limit)
+      .select([
+        'message.id',
+        'message.content',
+        'message.sent_at',
+        'message.is_read',
+        'message.is_revoked',
+        'sender.id',
+        'sender.first_name',
+        'sender.last_name',
+        'sender.avatar_url',
+        'receiver.id',
+        'receiver.first_name',
+        'receiver.last_name',
+        'receiver.avatar_url',
+      ])
+      .getMany();
+  }
   async getLastMessageWithFriends(userId: number) {
     // Lấy tất cả các tin nhắn mà user này là sender hoặc receiver, chỉ lấy id, content, sent_at, senderId, receiverId
     const messages = await this.messageRepository.find({
