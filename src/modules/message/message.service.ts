@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Message } from '../../entities/message.entity';
 import { Brackets, Repository } from 'typeorm';
@@ -168,7 +168,7 @@ export class MessageService {
     const message = await this.messageRepository.findOne({ where: { id: messageId } });
     const user = await this.userRepository.findOne({ where: { id: userId } });
 
-    if (!message || !user) throw new Error('Message or user not found');
+    if (!message || !user) throw new NotFoundException('Message or user not found');
 
     const existing = await this.reactionRepository.findOne({
       where: { message: { id: messageId }, user: { id: userId } },
@@ -188,6 +188,12 @@ export class MessageService {
     await this.reactionRepository.delete({
       message: { id: messageId },
       user: { id: userId },
+    });
+  }
+  async getMessageWithRelations(messageId: number) {
+    return this.messageRepository.findOne({
+      where: { id: messageId },
+      relations: ['sender', 'receiver', 'reactions', 'reactions.user'],
     });
   }
 
