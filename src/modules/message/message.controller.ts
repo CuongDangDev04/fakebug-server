@@ -70,5 +70,12 @@ export class MessageController {
     return { success: true };
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Put('delete-for-me/:messageId')
+  async deleteMessageForMe(@Req() req, @Param('messageId') messageId: number){
+     await this.messageService.deletedMessageForMe(messageId, req.user.userId);
+    return {success: true}
+  }
+
 
 }

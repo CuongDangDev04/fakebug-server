@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Message } from '../../entities/message.entity';
 import { Brackets, Repository } from 'typeorm';
@@ -33,14 +33,22 @@ export class MessageService {
       .leftJoinAndSelect('reaction.user', 'reactionUser')
       .where(
         new Brackets(qb => {
-          qb.where('sender.id = :userId1 AND receiver.id = :userId2', { userId1, userId2 })
-            .orWhere('sender.id = :userId2 AND receiver.id = :userId1', { userId1, userId2 })
-
+          qb.where(
+            new Brackets(qb1 => {
+              qb1.where('sender.id = :userId1 AND receiver.id = :userId2')
+                .andWhere('message.is_deleted_for_sender = false')
+            }))
+            .orWhere(
+              new Brackets(qb2 => {
+                qb2.where('sender.id = :userId2 AND receiver.id = :userId1')
+                  .andWhere('message.is_deleted_for_receiver = false')
+              }))
         }),
       )
       .orderBy('message.sent_at', 'DESC')
       .skip(offset)
       .take(limit)
+      .setParameters({ userId1, userId2 })
       .select([
         'message.id',
         'message.content',
@@ -63,8 +71,10 @@ export class MessageService {
         'reactionUser.last_name',
         'reactionUser.avatar_url',
       ])
+
       .getMany();
   }
+
   async getLastMessageWithFriends(userId: number) {
     // Lấy tất cả các tin nhắn mà user này là sender hoặc receiver, chỉ lấy id, content, sent_at, senderId, receiverId
     const messages = await this.messageRepository.find({
@@ -195,6 +205,32 @@ export class MessageService {
       where: { id: messageId },
       relations: ['sender', 'receiver', 'reactions', 'reactions.user'],
     });
+  }
+  async deletedMessageForMe(messageId: number, userId: number) {
+    const message = await this.messageRepository.findOne({
+      where: { id: messageId },
+      relations: ['sender', 'receiver']
+    });
+    if (!message) {
+      throw new NotFoundException("Message not found")
+    }
+    const isSender = message.sender.id === userId;
+    const isReceiver = message.receiver.id === userId;
+
+    if (!isSender && !isReceiver) {
+      throw new UnauthorizedException('You are not allowed to delete this message');
+    }
+
+    if (isSender) {
+      message.is_deleted_for_sender = true;
+    }
+
+    if (isReceiver) {
+      message.is_deleted_for_receiver = true;
+    }
+
+    return this.messageRepository.save(message);
+
   }
 
 }

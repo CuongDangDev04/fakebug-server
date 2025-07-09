@@ -34,4 +34,10 @@ export class Message {
 
   @OneToMany(() => MessageReaction, reaction => reaction.message)
   reactions: MessageReaction[];
+
+  @Column({default: false})
+  is_deleted_for_sender: boolean;
+
+  @Column({default: false})
+  is_deleted_for_receiver: boolean
 }
