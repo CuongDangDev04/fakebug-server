@@ -20,7 +20,10 @@ export class Message {
   @ManyToOne(() => User, user => user.receivedMessages)
   receiver: User;
 
-  @Column('text')
+  @Column({ type: 'enum', enum: ['text', 'call'], default: 'text' })
+  type: 'text' | 'call';
+
+  @Column('text', { nullable: true })
   content: string;
 
   @CreateDateColumn()
@@ -35,9 +38,9 @@ export class Message {
   @OneToMany(() => MessageReaction, reaction => reaction.message)
   reactions: MessageReaction[];
 
-  @Column({default: false})
+  @Column({ default: false })
   is_deleted_for_sender: boolean;
 
-  @Column({default: false})
-  is_deleted_for_receiver: boolean
+  @Column({ default: false })
+  is_deleted_for_receiver: boolean;
 }

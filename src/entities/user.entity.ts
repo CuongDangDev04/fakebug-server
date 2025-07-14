@@ -95,4 +95,6 @@ export class User {
 
   @OneToMany(() => MessageReaction, reaction => reaction.user)
   messageReactions: MessageReaction[];
+
+
 }
