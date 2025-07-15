@@ -49,57 +49,57 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return this.onlineUsers.get(userId);
   }
 
-@SubscribeMessage('start-call')
-async handleStartCall(
-  @ConnectedSocket() socket: Socket,
-  @MessageBody() data: StartCallDto,
-) {
-  console.log('📞 [start-call] Request received:', data);
+  @SubscribeMessage('start-call')
+  async handleStartCall(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() data: StartCallDto,
+  ) {
+    console.log('📞 [start-call] Request received:', data);
 
-  const call = await this.callService.startCall(data);
-  console.log(`✅ [start-call] Call created:`, call);
+    const call = await this.callService.startCall(data);
+    console.log(`✅ [start-call] Call created:`, call);
 
-  const eventPayload = {
-    callId: call.id,            // ✅ Sử dụng callId thống nhất
-    callerId: data.callerId,
-    receiverId: data.receiverId,
-    callType: data.callType,
-  };
+    const eventPayload = {
+      callId: call.id,            // ✅ Sử dụng callId thống nhất
+      callerId: data.callerId,
+      receiverId: data.receiverId,
+      callType: data.callType,
+    };
 
-  const receiverSocket = this.getSocket(data.receiverId);
-  if (receiverSocket) {
-    receiverSocket.emit('incoming-call', eventPayload);
-    console.log(`📨 [start-call] Sent incoming-call to user ${data.receiverId}`);
-  } else {
-    console.warn(`⚠️ [start-call] Receiver ${data.receiverId} not online`);
+    const receiverSocket = this.getSocket(data.receiverId);
+    if (receiverSocket) {
+      receiverSocket.emit('incoming-call', eventPayload);
+      console.log(`📨 [start-call] Sent incoming-call to user ${data.receiverId}`);
+    } else {
+      console.warn(`⚠️ [start-call] Receiver ${data.receiverId} not online`);
+    }
+
+    socket.emit('call-started', eventPayload);
   }
 
-  socket.emit('call-started', eventPayload);
-}
+  @SubscribeMessage('accept-call')
+  handleAcceptCall(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() data: { callId: number; callerId: number; receiverId: number },
+  ) {
+    const callerSocket = this.getSocket(data.callerId);
+    const receiverSocket = this.getSocket(data.receiverId);
 
-@SubscribeMessage('accept-call')
-handleAcceptCall(
-  @ConnectedSocket() socket: Socket,
-  @MessageBody() data: { callId: number; callerId: number; receiverId: number },
-) {
-  const callerSocket = this.getSocket(data.callerId);
-  const receiverSocket = this.getSocket(data.receiverId);
+    const eventPayload = {
+      callId: data.callId,            // ✅ Thống nhất callId
+      receiverId: data.receiverId,
+      callerId: data.callerId,
+      callType: 'video',
+    };
 
-  const eventPayload = {
-    callId: data.callId,            // ✅ Thống nhất callId
-    receiverId: data.receiverId,
-    callerId: data.callerId,
-    callType: 'video',
-  };
+    if (receiverSocket) {
+      receiverSocket.emit('call-started', eventPayload);
+    }
 
-  if (receiverSocket) {
-    receiverSocket.emit('call-started', eventPayload);
+    if (callerSocket) {
+      callerSocket.emit('receiver-accepted', eventPayload);
+    }
   }
-
-  if (callerSocket) {
-    callerSocket.emit('receiver-accepted', eventPayload);
-  }
-}
 
 
 
@@ -113,14 +113,21 @@ handleAcceptCall(
     // Gửi event về caller và receiver nếu online
     for (const userId of [data.callerId, data.receiverId]) {
       const userSocket = this.getSocket(userId);
+
       if (userSocket) {
+        console.log(`📤 Emitting 'call-ended' to userId=${userId}, socketId=${userSocket.id}`);
         userSocket.emit('call-ended', {
           callId: data.callId,
           status: data.status,
+          callerId: userId,   
+          receiverId: userSocket.id
         });
+      } else {
+        console.log(`⚠️ UserId=${userId} không có socket kết nối (không gửi được 'call-ended')`);
       }
     }
   }
+
 
   @SubscribeMessage('offer')
   handleOffer(
