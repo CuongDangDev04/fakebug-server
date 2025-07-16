@@ -27,8 +27,13 @@ export class Call {
   @Column({ nullable: true })
   end_time: Date;
 
-  @Column({ type: 'enum', enum: ['ongoing', 'missed', 'ended', 'rejected'], default: 'ongoing' })
-  status: 'ongoing' | 'missed' | 'ended' | 'rejected';
+  @Column({
+    type: 'enum',
+    enum: ['ongoing', 'missed', 'ended', 'rejected', 'cancelled'],
+    default: 'ongoing',
+  })
+  status: 'ongoing' | 'missed' | 'ended' | 'rejected' | 'cancelled';
+
 
   // Tin nhắn liên kết với cuộc gọi
   @OneToOne(() => Message, { nullable: true })

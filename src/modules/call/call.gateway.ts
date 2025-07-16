@@ -91,7 +91,7 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
       callerId: data.callerId,
       callType: data.callType
     };
-    console.log('eventPayload',eventPayload)
+    console.log('eventPayload', eventPayload)
 
     if (receiverSocket) {
       receiverSocket.emit('call-started', eventPayload);
@@ -111,23 +111,27 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
     await this.callService.endCall(data.callId, data.status);
     console.log(`✅ [end-call] Call ${data.callId} ended with status ${data.status}`);
 
-    // Gửi event về caller và receiver nếu online
     for (const userId of [data.callerId, data.receiverId]) {
       const userSocket = this.getSocket(userId);
 
       if (userSocket) {
-        console.log(`📤 Emitting 'call-ended' to userId=${userId}, socketId=${userSocket.id}`);
+        const role = userId === data.callerId ? 'caller' : 'receiver';
+
+        console.log(`📤 Emitting 'call-ended' to userId=${userId}, role=${role}`);
+
         userSocket.emit('call-ended', {
           callId: data.callId,
           status: data.status,
-          callerId: userId,
-          receiverId: userSocket.id
+          callerId: data.callerId,
+          receiverId: data.receiverId,
+          role,   // ✅ thêm role
         });
       } else {
-        console.log(`⚠️ UserId=${userId} không có socket kết nối (không gửi được 'call-ended')`);
+        console.log(`⚠️ UserId=${userId} không có socket kết nối`);
       }
     }
   }
+
 
 
   @SubscribeMessage('offer')
