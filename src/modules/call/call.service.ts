@@ -16,7 +16,6 @@ export class CallService {
   async startCall(data: {
     callerId: number;
     receiverId: number;
-    callType: 'audio' | 'video';
   }): Promise<Call> {
     const caller = await this.userRepo.findOneBy({ id: data.callerId });
     const receiver = await this.userRepo.findOneBy({ id: data.receiverId });
@@ -28,7 +27,6 @@ export class CallService {
     const call = this.callRepo.create({
       caller,
       receiver,
-      call_type: data.callType,
       status: 'ongoing', // đúng logic hơn
       start_time: new Date(),
     });
@@ -60,8 +58,8 @@ export class CallService {
       type: 'call',
       content:
         status === 'missed'
-          ? `Cuộc gọi ${call.call_type} bị nhỡ.`
-          : `Cuộc gọi ${call.call_type} đã kết thúc. Thời lượng: ${durationStr}`,
+          ? `Cuộc gọi  bị nhỡ.`
+          : `Cuộc gọi  đã kết thúc. Thời lượng: ${durationStr}`,
     });
 
     const savedMessage = await this.messageRepo.save(message);

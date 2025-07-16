@@ -21,9 +21,6 @@ export class Call {
   @ManyToOne(() => User, user => user.callsReceived)
   receiver: User;
 
-  @Column({ type: 'enum', enum: ['audio', 'video'], default: 'audio' })
-  call_type: 'audio' | 'video';
-
   @CreateDateColumn()
   start_time: Date;
 

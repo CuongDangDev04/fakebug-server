@@ -80,7 +80,7 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('accept-call')
   handleAcceptCall(
     @ConnectedSocket() socket: Socket,
-    @MessageBody() data: { callId: number; callerId: number; receiverId: number },
+    @MessageBody() data: { callId: number; callerId: number; receiverId: number; callType: 'audio' | 'video' },
   ) {
     const callerSocket = this.getSocket(data.callerId);
     const receiverSocket = this.getSocket(data.receiverId);
@@ -89,8 +89,9 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
       callId: data.callId,            // ✅ Thống nhất callId
       receiverId: data.receiverId,
       callerId: data.callerId,
-      callType: 'video',
+      callType: data.callType
     };
+    console.log('eventPayload',eventPayload)
 
     if (receiverSocket) {
       receiverSocket.emit('call-started', eventPayload);
@@ -119,7 +120,7 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
         userSocket.emit('call-ended', {
           callId: data.callId,
           status: data.status,
-          callerId: userId,   
+          callerId: userId,
           receiverId: userSocket.id
         });
       } else {
