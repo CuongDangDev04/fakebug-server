@@ -24,4 +24,9 @@ export class UserController {
     async getInfoUser(@Req() req: any) {
         return this.userService.getInfoUser(req.user.userId)
     }
+    
+    @Get('public/:userId')
+    async getPublicUserInfo(@Param('userId', ParseIntPipe) userId: number) {
+        return this.userService.getPublicUserInfo(userId);
+    }
 }

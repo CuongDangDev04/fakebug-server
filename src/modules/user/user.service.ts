@@ -109,7 +109,7 @@ export class UserService {
 
         const friendshipStatus = await this.friendshipRepo
             .createQueryBuilder('friendship')
-            .where('(friendship.userOneId = :viewerId AND friendship.userTwoId = :userId) OR (friendship.userOneId = :userId AND friendship.userTwoId = :viewerId)', 
+            .where('(friendship.userOneId = :viewerId AND friendship.userTwoId = :userId) OR (friendship.userOneId = :userId AND friendship.userTwoId = :viewerId)',
                 { viewerId, userId })
             .getOne();
 
@@ -139,4 +139,23 @@ export class UserService {
             },
         }
     }
+    async getPublicUserInfo(userId: number) {
+        const user = await this.userRepository.findOne({
+            where: { id: userId },
+        });
+
+        if (!user) {
+            throw new NotFoundException('User not found');
+        }
+
+        return {
+            id: user.id,
+            first_name: user.first_name,
+            last_name: user.last_name,
+            username: user.username,
+            avatar_url: user.avatar_url,
+            bio: user.bio,
+        };
+    }
+
 }
