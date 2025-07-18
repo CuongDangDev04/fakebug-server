@@ -7,6 +7,7 @@ import {
   OneToMany,
   ManyToMany,
   JoinTable,
+  OneToOne,
 } from 'typeorm';
 import { Post } from './post.entity';
 import { Comment } from './comment.entity';
@@ -16,6 +17,7 @@ import { Friendship } from './friendship.entity';
 import { Call } from './call.entity';
 import { Notification } from './notification.entity';
 import { MessageReaction } from './message-reaction.entity';
+import { UserDetail } from './user-detail.entity';
 
 
 @Entity()
@@ -96,5 +98,6 @@ export class User {
   @OneToMany(() => MessageReaction, reaction => reaction.user)
   messageReactions: MessageReaction[];
 
-
+  @OneToOne(() => UserDetail, detail => detail.user, { cascade: true, eager: true })
+  detail: UserDetail;
 }

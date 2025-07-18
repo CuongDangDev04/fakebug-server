@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Friendship } from 'src/entities/friendship.entity';
 import { User } from 'src/entities/user.entity';
 import { Repository } from 'typeorm';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { UserDetail } from 'src/entities/user-detail.entity';
 
 @Injectable()
 export class UserService {
@@ -10,7 +12,10 @@ export class UserService {
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
         @InjectRepository(Friendship)
-        private readonly friendshipRepo: Repository<Friendship>
+        private readonly friendshipRepo: Repository<Friendship>,
+        @InjectRepository(UserDetail)
+        private readonly userDetailRepository: Repository<UserDetail>,
+
     ) { }
 
     async findByEmail(email: string): Promise<User | null> {
@@ -48,8 +53,9 @@ export class UserService {
     async getOwnProfile(userId: number) {
         const user = await this.userRepository.findOne({
             where: { id: userId },
-            relations: ['posts', 'comments', 'likes'],
+            relations: ['posts', 'comments', 'likes', 'detail'],  // Thêm quan hệ 'detail'
         });
+
         if (!user) {
             throw new NotFoundException('User not found');
         }
@@ -62,8 +68,9 @@ export class UserService {
             .leftJoinAndSelect('friendship.userTwo', 'userTwo')
             .getMany();
 
-        const friendUsers = friends
-            .map(f => (f.userOne.id === userId ? f.userTwo : f.userOne));
+        const friendUsers = friends.map(f =>
+            (f.userOne.id === userId ? f.userTwo : f.userOne)
+        );
 
         return {
             user: {
@@ -76,6 +83,18 @@ export class UserService {
                 bio: user.bio,
                 role: user.role,
                 provider: user.provider,
+                detail: user.detail ? {
+                    gender: user.detail.gender,
+                    date_of_birth: user.detail.date_of_birth,
+                    phone_number: user.detail.phone_number,
+                    address: user.detail.address,
+                    website: user.detail.website,
+                    career: user.detail.career,
+                    education: user.detail.education,
+                    relationship_status: user.detail.relationship_status,
+                    cover_url: user.detail.cover_url,
+                    gallery_images: user.detail.gallery_images,
+                } : null,
             },
             friends: {
                 total: friends.length,
@@ -87,7 +106,7 @@ export class UserService {
                     avatar_url: friend.avatar_url,
                 })),
             },
-        }
+        };
     }
 
     async getOtherUserProfile(userId: number, viewerId: number) {
@@ -157,5 +176,36 @@ export class UserService {
             bio: user.bio,
         };
     }
+    async updateAvatar(userId: number, avatarUrl: string) {
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+        if (!user) throw new NotFoundException('User not found');
+
+        user.avatar_url = avatarUrl;
+        return this.userRepository.save(user);
+    }
+
+    async updateCover(userId: number, coverUrl: string) {
+        const user = await this.userRepository.findOne({
+            where: { id: userId },
+            relations: ['detail'],
+        });
+
+        if (!user) {
+            throw new NotFoundException('User not found');
+        }
+
+        if (!user.detail) {
+            user.detail = this.userDetailRepository.create({
+                user: user,
+                cover_url: coverUrl,
+            });
+        } else {
+            user.detail.cover_url = coverUrl;
+        }
+
+        return this.userDetailRepository.save(user.detail);
+
+    }
+
 
 }
