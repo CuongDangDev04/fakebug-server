@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Message } from '../../entities/message.entity';
 import { Brackets, Repository } from 'typeorm';
@@ -232,5 +232,36 @@ export class MessageService {
     return this.messageRepository.save(message);
 
   }
+  async forwardMessage(messageId: number, senderId: number, receiverId: number) {
+    if (senderId === receiverId) {
+    throw new BadRequestException('Không thể chuyển tiếp tin nhắn cho chính bạn.');
+  }
+    const originalMessage = await this.messageRepository.findOne({
+      where: { id: messageId },
+      relations: ['sender', 'receiver'],
+    });
+    console.log('originalMessage',originalMessage)
+    if (!originalMessage) {
+      throw new NotFoundException('Original message not found');
+    }
+
+    const sender = await this.userRepository.findOne({ where: { id: senderId } });
+    const receiver = await this.userRepository.findOne({ where: { id: receiverId } });
+
+    if (!sender || !receiver) {
+      throw new NotFoundException('Sender or receiver not found');
+    }
+
+    const forwardedContent = `${originalMessage.content}`;
+    console.log('forwardedContent',forwardedContent)
+    const newMessage = this.messageRepository.create({
+      sender,
+      receiver,
+      content: forwardedContent,
+    });
+
+    return this.messageRepository.save(newMessage);
+  }
+
 
 }

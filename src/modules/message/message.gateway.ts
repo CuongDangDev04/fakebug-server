@@ -9,6 +9,7 @@ import {
 } from '@nestjs/websockets';
 import { Socket, Server } from 'socket.io';
 import { MessageService } from './message.service';
+import { BadRequestException } from '@nestjs/common';
 
 export const MESSAGE_NAMESPACE = '/chat';
 
@@ -188,6 +189,54 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
     this.server.to(`user_${sender.id}`).emit('reactionUpdated', updatedMessage);
     this.server.to(`user_${receiver.id}`).emit('reactionUpdated', updatedMessage);
   }
+@SubscribeMessage('forwardMessage')
+async handleForwardMessage(
+  @ConnectedSocket() client: Socket,
+  @MessageBody() data: { originalMessageId: number; newReceiverId: number } // ✅ sửa lại
+) {
+  const senderId = Number(client.handshake.query.userId);
+
+  if (senderId === data.newReceiverId) {
+    throw new BadRequestException('Không thể chuyển tiếp tin nhắn cho chính bạn.');
+  }
+
+  const newMessage = await this.messageService.forwardMessage(
+    data.originalMessageId,
+    senderId,
+    data.newReceiverId // ✅ sửa lại
+  );
+
+  const payload = {
+    id: newMessage.id,
+    content: newMessage.content,
+    type: newMessage.type || 'text',
+    sender: {
+      id: senderId,
+      first_name: newMessage.sender.first_name,
+      last_name: newMessage.sender.last_name,
+      avatar_url: newMessage.sender.avatar_url,
+    },
+    receiver: {
+      id: data.newReceiverId, // ✅ sửa lại
+      first_name: newMessage.receiver.first_name,
+      last_name: newMessage.receiver.last_name,
+      avatar_url: newMessage.receiver.avatar_url,
+    },
+    sent_at: new Date(),
+    is_read: false,
+    is_revoked: false,
+  };
+
+  client.emit('messageSent', payload);
+  this.server.to(`user_${data.newReceiverId}`).emit('newMessage', payload);
+
+  if (senderId !== data.newReceiverId) {
+    this.server.to(`user_${senderId}`).emit('newMessage', payload);
+  }
+
+  return payload;
+}
+
 
 
 }

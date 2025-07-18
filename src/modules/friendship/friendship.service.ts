@@ -431,7 +431,7 @@ export class FriendshipService {
 
     const friends = await Promise.all(friendships.map(async (friendship) => {
       const friend = friendship.userOne.id === targetUserId ? friendship.userTwo : friendship.userOne;
-      console.log('f',friend)
+      console.log('f', friend)
       const mutualFriends = await this.getMutualFriends(targetUserId, friend.id);
       console.log('bạn chung', mutualFriends)
       return {
@@ -515,4 +515,27 @@ export class FriendshipService {
       blocked: formatted,
     };
   }
+  
+  async getMyFriends(userId: number) {
+    const friendships = await this.friendshipRepo.find({
+      where: [
+        { userOne: { id: userId }, status: 'accepted' },
+        { userTwo: { id: userId }, status: 'accepted' },
+      ],
+      relations: ['userOne', 'userTwo'],
+    });
+
+    return friendships.map(friendship => {
+      const friend =
+        friendship.userOne.id === userId ? friendship.userTwo : friendship.userOne;
+
+      return {
+        id: friend.id,
+        firstName: friend.first_name,
+        lastName: friend.last_name,
+        avatar: friend.avatar_url,
+      };
+    });
+  }
+
 }

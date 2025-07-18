@@ -97,7 +97,7 @@ export class FriendshipController {
   async getUserFriends(@Param('userId', ParseIntPipe) userId: number) {
     return this.friendshipService.getUserFriends(userId);
   }
-  
+
   @UseGuards(JwtAuthGuard)
   @Post('status-batch')
   async getFriendshipStatusBatch(
@@ -112,4 +112,10 @@ export class FriendshipController {
   async getBlockedUsers(@Req() req: any) {
     return this.friendshipService.getBlockedUsers(req.user.userId);
   }
+  @UseGuards(JwtAuthGuard)
+  @Get('my-friends')
+  async getMyFriends(@Req() req) {
+    return this.friendshipService.getMyFriends(req.user.userId);
+  }
+
 }
