@@ -9,6 +9,7 @@ import { FriendshipModule } from './modules/friendship/friendship.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { MessageModule } from './modules/message/message.module';
 import { CallModule } from './modules/call/call.module';
+import { PostsModule } from './modules/posts/posts.module';
 
 @Module({
   imports: [
@@ -30,7 +31,8 @@ import { CallModule } from './modules/call/call.module';
     FriendshipModule,
     NotificationModule,
     MessageModule,
-    CallModule
+    CallModule,
+    PostsModule
   ],
   controllers: [AppController],
   providers: [AppService],

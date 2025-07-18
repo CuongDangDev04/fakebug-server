@@ -21,8 +21,8 @@ export class Post {
     @Column('text')
     content: string;
 
-    @Column({ nullable: true })
-    media_url: string;
+    @Column({ type: 'varchar', nullable: true })
+    media_url: string | null;
 
     @CreateDateColumn()
     created_at: Date;
