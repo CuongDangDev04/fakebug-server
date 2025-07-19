@@ -11,13 +11,14 @@ import {
 } from 'typeorm';
 import { Post } from './post.entity';
 import { Comment } from './comment.entity';
-import {  PostReaction } from './post-reaction.entity';
+import { PostReaction } from './post-reaction.entity';
 import { Message } from './message.entity';
 import { Friendship } from './friendship.entity';
 import { Call } from './call.entity';
 import { Notification } from './notification.entity';
 import { MessageReaction } from './message-reaction.entity';
 import { UserDetail } from './user-detail.entity';
+import { CommentReaction } from './comment-reaction.entity';
 
 
 @Entity()
@@ -64,6 +65,9 @@ export class User {
   // Một user có nhiều comment
   @OneToMany(() => Comment, comment => comment.user)
   comments: Comment[];
+
+  @OneToMany(() => CommentReaction, reaction => reaction.user)
+  commentReactions: CommentReaction[];
 
   // Một user có nhiều post reaction
   @OneToMany(() => PostReaction, reaction => reaction.user)
