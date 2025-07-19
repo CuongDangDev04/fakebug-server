@@ -13,7 +13,7 @@ export class PostReaction {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => User, user => user.postReactions)
+  @ManyToOne(() => User, user => user.reactions)
   user: User;
 
   @ManyToOne(() => Post, post => post.reactions)

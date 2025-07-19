@@ -67,7 +67,7 @@ export class User {
 
   // Một user có nhiều post reaction
   @OneToMany(() => PostReaction, reaction => reaction.user)
-  postReactions: PostReaction[];
+  reactions: PostReaction[];
 
   // Một user gửi nhiều tin nhắn
   @OneToMany(() => Message, message => message.sender)
