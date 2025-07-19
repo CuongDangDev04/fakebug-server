@@ -45,11 +45,16 @@ export class PostService {
 
 
     async getById(id: number) {
-        return this.postRepo.findOne({
+        const post = await this.postRepo.findOne({
             where: { id },
-            relations: ['user', 'likes', 'comments'],
+            relations: ['user', 'reactions', 'reactions.user', 'comments'],
         });
+
+        if (!post) throw new NotFoundException('Bài viết không tồn tại');
+
+        return this.formatPostWithReactions(post);
     }
+
 
     async update(id: number, dto: CreatePostDto, file?: Express.Multer.File) {
         console.log('=== [UPDATE POST] ===');
@@ -106,7 +111,7 @@ export class PostService {
 
         return this.postRepo.findOne({
             where: { id: savedPost.id },
-            relations: ['user', 'comments', 'likes'],  // Trả về dữ liệu đầy đủ
+            relations: ['user', 'comments', 'reactions'],  // Trả về dữ liệu đầy đủ
         });
     }
 
@@ -144,29 +149,33 @@ export class PostService {
 
     // Lấy các bài viết công khai
     async getPublicPosts() {
-        return this.postRepo.find({
+        const posts = await this.postRepo.find({
             where: { privacy: 'public' },
-            relations: ['user', 'likes', 'comments'],
+            relations: ['user', 'reactions', 'reactions.user', 'comments'],
             order: { created_at: 'DESC' },
         });
+
+        return posts.map(post => this.formatPostWithReactions(post));
     }
+
 
     // Lấy các bài viết riêng tư của chính người dùng
     async getPrivatePosts(userId: number) {
-        return this.postRepo.find({
+        const posts = await this.postRepo.find({
             where: {
                 user: { id: userId },
                 privacy: 'private',
             },
-            relations: ['user', 'likes', 'comments'],
+            relations: ['user', 'reactions', 'reactions.user', 'comments'],
             order: { created_at: 'DESC' },
         });
+
+        return posts.map(post => this.formatPostWithReactions(post));
     }
+
 
     // Lấy bài viết của bạn bè (và chính user)
     async getFriendPosts(userId: number) {
-        console.log('👉 [getFriendPosts] userId:', userId);
-
         const friendships = await this.friendshipRepo.find({
             where: [
                 { userOne: { id: userId }, status: 'accepted' },
@@ -175,36 +184,28 @@ export class PostService {
             relations: ['userOne', 'userTwo'],
         });
 
-        console.log('👉 [getFriendPosts] friendships:', friendships);
-
         const friendIds = friendships.map(friendship =>
             friendship.userOne.id === userId
                 ? friendship.userTwo.id
                 : friendship.userOne.id
         );
 
-        friendIds.push(userId); // Bao gồm cả userId
+        friendIds.push(userId);
 
-        console.log('👉 [getFriendPosts] friendIds (bao gồm cả chính mình):', friendIds);
-
-        const data = await this.postRepo.find({
+        const posts = await this.postRepo.find({
             where: {
                 user: { id: In(friendIds) },
                 privacy: 'friends',
             },
-            relations: ['user', 'likes', 'comments'],
+            relations: ['user', 'reactions', 'reactions.user', 'comments'],
             order: { created_at: 'DESC' },
         });
 
-        console.log('👉 [getFriendPosts] posts:', data);
-
-        return data;
+        return posts.map(post => this.formatPostWithReactions(post));
     }
+
     // Lấy tất cả bài viết mà user được phép xem
     async getAllVisiblePosts(userId: number) {
-        console.log('👉 [getAllVisiblePosts] userId:', userId);
-
-        // 1. Lấy danh sách bạn bè
         const friendships = await this.friendshipRepo.find({
             where: [
                 { userOne: { id: userId }, status: 'accepted' },
@@ -219,24 +220,35 @@ export class PostService {
                 : friendship.userOne.id
         );
 
-        friendIds.push(userId);  // Bao gồm cả userId chính mình
+        friendIds.push(userId);
 
-        console.log('👉 [getAllVisiblePosts] friendIds (gồm chính mình):', friendIds);
-
-        // 2. Lấy các bài viết:
         const posts = await this.postRepo.find({
             where: [
                 { privacy: 'public' },
                 { privacy: 'friends', user: { id: In(friendIds) } },
                 { privacy: 'private', user: { id: userId } },
             ],
-            relations: ['user', 'likes', 'comments'],
+            relations: ['user', 'reactions', 'reactions.user', 'comments'],
             order: { created_at: 'DESC' },
         });
 
-        console.log('👉 [getAllVisiblePosts] Tổng bài viết:', posts.length);
+        return posts.map(post => this.formatPostWithReactions(post));
+    }
 
-        return posts;
+    private formatPostWithReactions(post: Post) {
+        const reactions = post.reactions || [];
+
+        return {
+            ...post,
+            total_reactions: reactions.length,
+            reacted_users: reactions.map(r => ({
+                id: r.user.id,
+                first_name: r.user.first_name,
+                last_name: r.user.last_name,
+                avatar_url: r.user.avatar_url,
+                type: r.type,  // thêm loại cảm xúc
+            })),
+        };
     }
 
 

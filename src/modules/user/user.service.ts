@@ -53,7 +53,7 @@ export class UserService {
     async getOwnProfile(userId: number) {
         const user = await this.userRepository.findOne({
             where: { id: userId },
-            relations: ['posts', 'comments', 'likes', 'detail'],  // Thêm quan hệ 'detail'
+            relations: ['posts', 'comments', 'reactions', 'detail'],  // Thêm quan hệ 'detail'
         });
 
         if (!user) {
@@ -112,7 +112,7 @@ export class UserService {
     async getOtherUserProfile(userId: number, viewerId: number) {
         const user = await this.userRepository.findOne({
             where: { id: userId },
-            relations: ['posts', 'comments', 'likes'],
+            relations: ['posts', 'comments', 'reactions'],
         });
         if (!user) {
             throw new NotFoundException('User not found');

@@ -8,7 +8,7 @@ import {
     UpdateDateColumn,
 } from 'typeorm';
 import { User } from './user.entity';
-import { Like } from './like.entity';
+import {  PostReaction } from './post-reaction.entity';
 import { Comment } from './comment.entity'
 @Entity()
 export class Post {
@@ -40,6 +40,6 @@ export class Post {
     @OneToMany(() => Comment, comment => comment.post)
     comments: Comment[];
 
-    @OneToMany(() => Like, like => like.post)
-    likes: Like[];
+    @OneToMany(() => PostReaction, reaction => reaction.post)
+    reactions: PostReaction[];
 }

@@ -11,7 +11,7 @@ import {
 } from 'typeorm';
 import { Post } from './post.entity';
 import { Comment } from './comment.entity';
-import { Like } from './like.entity';
+import {  PostReaction } from './post-reaction.entity';
 import { Message } from './message.entity';
 import { Friendship } from './friendship.entity';
 import { Call } from './call.entity';
@@ -65,9 +65,9 @@ export class User {
   @OneToMany(() => Comment, comment => comment.user)
   comments: Comment[];
 
-  // Một user có nhiều likes
-  @OneToMany(() => Like, like => like.user)
-  likes: Like[];
+  // Một user có nhiều post reaction
+  @OneToMany(() => PostReaction, reaction => reaction.user)
+  postReactions: PostReaction[];
 
   // Một user gửi nhiều tin nhắn
   @OneToMany(() => Message, message => message.sender)

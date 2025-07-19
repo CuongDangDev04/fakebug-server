@@ -10,6 +10,7 @@ import { NotificationModule } from './modules/notification/notification.module';
 import { MessageModule } from './modules/message/message.module';
 import { CallModule } from './modules/call/call.module';
 import { PostsModule } from './modules/posts/posts.module';
+import { PostReactionModule } from './modules/post-reaction/post-reaction.module';
 
 @Module({
   imports: [
@@ -32,7 +33,8 @@ import { PostsModule } from './modules/posts/posts.module';
     NotificationModule,
     MessageModule,
     CallModule,
-    PostsModule
+    PostsModule,
+    PostReactionModule
   ],
   controllers: [AppController],
   providers: [AppService],
