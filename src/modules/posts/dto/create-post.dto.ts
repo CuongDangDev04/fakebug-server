@@ -1,4 +1,4 @@
-import { IsOptional, IsBoolean, IsString, IsNumber } from 'class-validator';
+import { IsOptional, IsBoolean, IsString, IsNumber, IsEnum } from 'class-validator';
 
 export class CreatePostDto {
   @IsOptional()
@@ -11,5 +11,9 @@ export class CreatePostDto {
 
   @IsOptional()
   @IsBoolean()
-  removeImage?: boolean; // <-- Thêm cờ xoá ảnh
+  removeImage?: boolean;
+
+  @IsOptional()
+  @IsEnum(['private', 'friends', 'public'])
+  privacy?: 'private' | 'friends' | 'public';
 }

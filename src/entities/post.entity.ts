@@ -24,6 +24,13 @@ export class Post {
     @Column({ type: 'varchar', nullable: true })
     media_url: string | null;
 
+    @Column({
+        type: 'enum',
+        enum: ['private', 'friends', 'public'],
+        default: 'friends',
+    })
+    privacy: 'private' | 'friends' | 'public';
+
     @CreateDateColumn()
     created_at: Date;
 

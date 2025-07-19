@@ -1,10 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Post } from 'src/entities/post.entity';
 import { User } from 'src/entities/user.entity';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CloudinaryService } from 'src/modules/cloudinary/cloudinary.service';
+import { Friendship } from 'src/entities/friendship.entity';
 
 @Injectable()
 export class PostService {
@@ -14,6 +15,8 @@ export class PostService {
         @InjectRepository(User)
         private userRepo: Repository<User>,
         private cloudinaryService: CloudinaryService,
+        @InjectRepository(Friendship)
+        private friendshipRepo: Repository<Friendship>
     ) { }
 
     async create(dto: CreatePostDto, file?: Express.Multer.File) {
@@ -32,17 +35,14 @@ export class PostService {
             user,
             content: dto.content,
             media_url: mediaUrl,
+            privacy: dto.privacy || 'friends',
         });
+
 
         return this.postRepo.save(newPost);
     }
 
-    async getAll() {
-        return this.postRepo.find({
-            relations: ['user', 'likes', 'comments'],
-            order: { created_at: 'DESC' },
-        });
-    }
+
 
     async getById(id: number) {
         return this.postRepo.findOne({
@@ -91,6 +91,10 @@ export class PostService {
             console.log('Đang cập nhật nội dung bài viết...');
             post.content = dto.content;
         }
+        if (dto.privacy) {
+            console.log('Đang cập nhật quyền riêng tư...');
+            post.privacy = dto.privacy;
+        }
 
         console.log('Dữ liệu bài viết sau khi cập nhật:', {
             content: post.content,
@@ -104,6 +108,135 @@ export class PostService {
             where: { id: savedPost.id },
             relations: ['user', 'comments', 'likes'],  // Trả về dữ liệu đầy đủ
         });
+    }
+
+    async checkFriendship(userId1: number, userId2: number): Promise<boolean> {
+        const friendship = await this.friendshipRepo.findOne({
+            where: [
+                { userOne: { id: userId1 }, userTwo: { id: userId2 }, status: 'accepted' },
+                { userOne: { id: userId2 }, userTwo: { id: userId1 }, status: 'accepted' },
+            ]
+        });
+        return !!friendship;
+    }
+
+    async getPostForUser(postId: number, viewerId: number) {
+        const post = await this.postRepo.findOne({
+            where: { id: postId },
+            relations: ['user'],
+        });
+
+        if (!post) throw new NotFoundException('Bài viết không tồn tại');
+
+        if (post.privacy === 'private' && post.user.id !== viewerId) {
+            throw new BadRequestException('Bạn không có quyền xem bài viết này');
+        }
+
+        if (post.privacy === 'friends') {
+            const isFriend = await this.checkFriendship(post.user.id, viewerId);
+            if (!isFriend && post.user.id !== viewerId) {
+                throw new BadRequestException('Bạn không có quyền xem bài viết này');
+            }
+        }
+
+        return post;
+    }
+
+    // Lấy các bài viết công khai
+    async getPublicPosts() {
+        return this.postRepo.find({
+            where: { privacy: 'public' },
+            relations: ['user', 'likes', 'comments'],
+            order: { created_at: 'DESC' },
+        });
+    }
+
+    // Lấy các bài viết riêng tư của chính người dùng
+    async getPrivatePosts(userId: number) {
+        return this.postRepo.find({
+            where: {
+                user: { id: userId },
+                privacy: 'private',
+            },
+            relations: ['user', 'likes', 'comments'],
+            order: { created_at: 'DESC' },
+        });
+    }
+
+    // Lấy bài viết của bạn bè (và chính user)
+    async getFriendPosts(userId: number) {
+        console.log('👉 [getFriendPosts] userId:', userId);
+
+        const friendships = await this.friendshipRepo.find({
+            where: [
+                { userOne: { id: userId }, status: 'accepted' },
+                { userTwo: { id: userId }, status: 'accepted' },
+            ],
+            relations: ['userOne', 'userTwo'],
+        });
+
+        console.log('👉 [getFriendPosts] friendships:', friendships);
+
+        const friendIds = friendships.map(friendship =>
+            friendship.userOne.id === userId
+                ? friendship.userTwo.id
+                : friendship.userOne.id
+        );
+
+        friendIds.push(userId); // Bao gồm cả userId
+
+        console.log('👉 [getFriendPosts] friendIds (bao gồm cả chính mình):', friendIds);
+
+        const data = await this.postRepo.find({
+            where: {
+                user: { id: In(friendIds) },
+                privacy: 'friends',
+            },
+            relations: ['user', 'likes', 'comments'],
+            order: { created_at: 'DESC' },
+        });
+
+        console.log('👉 [getFriendPosts] posts:', data);
+
+        return data;
+    }
+    // Lấy tất cả bài viết mà user được phép xem
+    async getAllVisiblePosts(userId: number) {
+        console.log('👉 [getAllVisiblePosts] userId:', userId);
+
+        // 1. Lấy danh sách bạn bè
+        const friendships = await this.friendshipRepo.find({
+            where: [
+                { userOne: { id: userId }, status: 'accepted' },
+                { userTwo: { id: userId }, status: 'accepted' },
+            ],
+            relations: ['userOne', 'userTwo'],
+        });
+
+        const friendIds = friendships.map(friendship =>
+            friendship.userOne.id === userId
+                ? friendship.userTwo.id
+                : friendship.userOne.id
+        );
+
+        friendIds.push(userId);  // Bao gồm cả userId chính mình
+
+        console.log('👉 [getAllVisiblePosts] friendIds (gồm chính mình):', friendIds);
+
+        // 2. Lấy các bài viết:
+        const posts = await this.postRepo.find({
+            where: [
+                { privacy: 'public' },
+                { privacy: 'friends', user: { id: In(friendIds) } },
+                { privacy: 'private', user: { id: userId } },
+            ],
+            relations: ['user', 'likes', 'comments'],
+            order: { created_at: 'DESC' },
+        });
+
+        console.log('👉 [getAllVisiblePosts] Tổng bài viết:', posts.length);
+
+        return posts;
     }
 
 
