@@ -34,7 +34,16 @@ export class CommentService {
 
         let parent: Comment | null = null;
         if (createDto.parentId) {
-            parent = await this.commentRepository.findOne({ where: { id: createDto.parentId } });
+            parent = await this.commentRepository.findOne({
+                where: { id: createDto.parentId },
+                relations: ['parent'], // cần để kiểm tra cấp bậc
+            });
+            if (!parent) throw new NotFoundException('Parent comment not found');
+
+            if (parent.parent) {
+                // Nếu parent có parent, tức là parent là bình luận cấp 2
+                throw new Error('Only two levels of comments are allowed');
+            }
         }
 
         const comment = this.commentRepository.create({
@@ -42,15 +51,17 @@ export class CommentService {
             post,
             user,
             parent,
+
         });
 
         return this.commentRepository.save(comment);
     }
 
+
     async findAllByPost(postId: number) {
         return this.commentRepository.find({
             where: { post: { id: postId }, parent: null as any },
-            relations: ['user', 'replies', 'replies.user', 'reactions', 'reactions.user', ],
+            relations: ['user', 'replies', 'replies.user', 'reactions', 'reactions.user', 'parent'],
             order: { created_at: 'DESC' },
         });
     }
@@ -71,39 +82,39 @@ export class CommentService {
         return { message: 'Comment deleted' };
     }
 
-   async react(commentId: number, userId: number, type: ReactionType | null) {
-    const comment = await this.commentRepository.findOne({ where: { id: commentId } });
-    if (!comment) throw new NotFoundException('Comment not found');
+    async react(commentId: number, userId: number, type: ReactionType | null) {
+        const comment = await this.commentRepository.findOne({ where: { id: commentId } });
+        if (!comment) throw new NotFoundException('Comment not found');
 
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) throw new NotFoundException('User not found');
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+        if (!user) throw new NotFoundException('User not found');
 
-    let existingReaction = await this.reactionRepository.findOne({
-        where: { comment: { id: commentId }, user: { id: userId } },
-    });
+        let existingReaction = await this.reactionRepository.findOne({
+            where: { comment: { id: commentId }, user: { id: userId } },
+        });
 
-    if (existingReaction) {
-        if (type === null) {
-            // ✅ Nếu type=null thì xoá reaction
-            await this.reactionRepository.remove(existingReaction);
-            return { message: 'Reaction removed' };
+        if (existingReaction) {
+            if (type === null) {
+                // ✅ Nếu type=null thì xoá reaction
+                await this.reactionRepository.remove(existingReaction);
+                return { message: 'Reaction removed' };
+            } else {
+                existingReaction.type = type;
+                return this.reactionRepository.save(existingReaction);
+            }
         } else {
-            existingReaction.type = type;
-            return this.reactionRepository.save(existingReaction);
-        }
-    } else {
-        if (type !== null) {
-            const newReaction = this.reactionRepository.create({
-                comment,
-                user,
-                type,
-            });
-            return this.reactionRepository.save(newReaction);
-        } else {
-            // Không có reaction cũ, không làm gì
-            return { message: 'No existing reaction to remove' };
+            if (type !== null) {
+                const newReaction = this.reactionRepository.create({
+                    comment,
+                    user,
+                    type,
+                });
+                return this.reactionRepository.save(newReaction);
+            } else {
+                // Không có reaction cũ, không làm gì
+                return { message: 'No existing reaction to remove' };
+            }
         }
     }
-}
 
 }
