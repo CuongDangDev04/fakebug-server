@@ -10,6 +10,7 @@ import {
   Request,
   Req,
   Get,
+  Delete,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PostService } from './posts.service';
@@ -62,7 +63,11 @@ export class PostController {
     return this.postService.getAllVisiblePosts(userId);
   }
 
-
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  deletePost(@Param('id') id: number, @Req() req) {
+    return this.postService.delete(Number(id), req.user.userId);
+  }
 
 
 

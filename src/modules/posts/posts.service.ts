@@ -57,10 +57,6 @@ export class PostService {
 
 
     async update(id: number, dto: CreatePostDto, file?: Express.Multer.File) {
-        console.log('=== [UPDATE POST] ===');
-        console.log('Post ID:', id);
-        console.log('DTO nhận vào:', dto);
-        console.log('Có file upload không:', !!file);
 
         const post = await this.postRepo.findOne({ where: { id }, relations: ['user'] });
 
@@ -250,6 +246,23 @@ export class PostService {
             })),
         };
     }
+    async delete(id: number, userId: number): Promise<{ message: string }> {
+        const post = await this.postRepo.findOne({
+            where: { id },
+            relations: ['user'],
+        });
 
+        if (!post) {
+            throw new NotFoundException('Bài viết không tồn tại');
+        }
+
+        if (post.user.id !== userId) {
+            throw new BadRequestException('Bạn không có quyền xóa bài viết này');
+        }
+
+        await this.postRepo.remove(post);
+
+        return { message: 'Xóa bài viết thành công' };
+    }
 
 }

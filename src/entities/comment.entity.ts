@@ -18,10 +18,10 @@ export class Comment {
   @ManyToOne(() => User, user => user.comments)
   user: User;
 
-  @ManyToOne(() => Post, post => post.comments)
+  @ManyToOne(() => Post, post => post.comments,{ onDelete: 'CASCADE' })
   post: Post;
 
-  @ManyToOne(() => Comment, comment => comment.replies, { nullable: true })
+  @ManyToOne(() => Comment, comment => comment.replies, { nullable: true , onDelete: 'CASCADE'})
   parent: Comment | null;  // Nếu null tức là bình luận gốc
 
   @OneToMany(() => Comment, comment => comment.parent)

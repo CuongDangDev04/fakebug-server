@@ -37,9 +37,9 @@ export class Post {
     @UpdateDateColumn()
     updated_at: Date;
 
-    @OneToMany(() => Comment, comment => comment.post)
+    @OneToMany(() => Comment, comment => comment.post, { cascade: true })
     comments: Comment[];
 
-    @OneToMany(() => PostReaction, reaction => reaction.post)
+    @OneToMany(() => PostReaction, reaction => reaction.post, { cascade: true })
     reactions: PostReaction[];
 }
