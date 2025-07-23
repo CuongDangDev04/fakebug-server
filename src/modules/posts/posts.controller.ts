@@ -62,6 +62,27 @@ export class PostController {
     console.log('👉 [getAllVisiblePosts Controller] userId:', userId);
     return this.postService.getAllVisiblePosts(userId);
   }
+  @HttpPost(':id/share')
+  @UseGuards(JwtAuthGuard)
+  async sharePost(
+    @Param('id') id: number,
+    @Req() req,
+    @Body() body: { content: string; privacy: 'public' | 'private' | 'friends' }
+  ) {
+    const userId = req.user.userId;
+    console.log('userId',userId)
+
+    const dto: CreatePostDto = {
+      userId,
+      originalPostId: Number(id),
+      content: body.content || '',  
+      privacy: body.privacy || 'friends',  
+    };
+
+    return this.postService.create(dto);
+  }
+
+
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')

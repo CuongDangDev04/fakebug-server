@@ -31,11 +31,29 @@ export class PostService {
             mediaUrl = await this.cloudinaryService.uploadImage(file, 'posts');
         }
 
+        let originalPost: Post | undefined;
+
+        if (dto.originalPostId) {
+            const foundOriginal = await this.postRepo.findOne({
+                where: { id: dto.originalPostId },
+                relations: ['user'],
+            });
+
+            if (!foundOriginal || foundOriginal.privacy !== 'public') {
+                throw new BadRequestException('Chỉ có thể chia sẻ bài viết công khai');
+            }
+
+            originalPost = foundOriginal;
+        }
+
+
         const newPost = this.postRepo.create({
             user,
             content: dto.content,
             media_url: mediaUrl,
             privacy: dto.privacy || 'friends',
+            originalPost,
+            original_post_id: originalPost?.id
         });
 
 
@@ -47,9 +65,9 @@ export class PostService {
     async getById(id: number) {
         const post = await this.postRepo.findOne({
             where: { id },
-            relations: ['user', 'reactions', 'reactions.user', 'comments'],
+            relations: ['user', 'reactions', 'reactions.user', 'comments', 'originalPost', 'originalPost.user'],
         });
-
+        console.log('post',post)
         if (!post) throw new NotFoundException('Bài viết không tồn tại');
 
         return this.formatPostWithReactions(post);
@@ -147,7 +165,7 @@ export class PostService {
     async getPublicPosts() {
         const posts = await this.postRepo.find({
             where: { privacy: 'public' },
-            relations: ['user', 'reactions', 'reactions.user', 'comments'],
+            relations: ['user', 'reactions', 'reactions.user', 'comments', 'originalPost', 'originalPost.user'],
             order: { created_at: 'DESC' },
         });
 
@@ -162,7 +180,7 @@ export class PostService {
                 user: { id: userId },
                 privacy: 'private',
             },
-            relations: ['user', 'reactions', 'reactions.user', 'comments'],
+            relations: ['user', 'reactions', 'reactions.user', 'comments', 'originalPost', 'originalPost.user'],
             order: { created_at: 'DESC' },
         });
 
@@ -224,7 +242,7 @@ export class PostService {
                 { privacy: 'friends', user: { id: In(friendIds) } },
                 { privacy: 'private', user: { id: userId } },
             ],
-            relations: ['user', 'reactions', 'reactions.user', 'comments'],
+            relations: ['user', 'reactions', 'reactions.user', 'comments', 'originalPost', 'originalPost.user'],
             order: { created_at: 'DESC' },
         });
 
@@ -237,13 +255,27 @@ export class PostService {
         return {
             ...post,
             total_reactions: reactions.length,
+
             reacted_users: reactions.map(r => ({
                 id: r.user.id,
                 first_name: r.user.first_name,
                 last_name: r.user.last_name,
                 avatar_url: r.user.avatar_url,
-                type: r.type,  // thêm loại cảm xúc
+                type: r.type,
             })),
+
+            original_post: post.originalPost
+                ? {
+                    id: post.originalPost.id,
+                    content: post.originalPost.content,
+                    user: {
+                        id: post.originalPost.user.id,
+                        first_name: post.originalPost.user.first_name,
+                        last_name: post.originalPost.user.last_name,
+                        avatar_url: post.originalPost.user.avatar_url,
+                    },
+                }
+                : null,
         };
     }
     async delete(id: number, userId: number): Promise<{ message: string }> {

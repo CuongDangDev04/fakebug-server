@@ -14,6 +14,10 @@ export class CreatePostDto {
   removeImage?: boolean;
 
   @IsOptional()
+  @IsNumber()
+  originalPostId?: number;
+
+  @IsOptional()
   @IsEnum(['private', 'friends', 'public'])
   privacy?: 'private' | 'friends' | 'public';
 }
