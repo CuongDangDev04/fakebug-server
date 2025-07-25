@@ -144,6 +144,18 @@ export class UserService {
                 username: user.username,
                 avatar_url: user.avatar_url,
                 bio: user.bio,
+                detail: user.detail ? {
+                    gender: user.detail.gender,
+                    date_of_birth: user.detail.date_of_birth,
+                    phone_number: user.detail.phone_number,
+                    address: user.detail.address,
+                    website: user.detail.website,
+                    career: user.detail.career,
+                    education: user.detail.education,
+                    relationship_status: user.detail.relationship_status,
+                    cover_url: user.detail.cover_url,
+                    gallery_images: user.detail.gallery_images,
+                } : null,
             },
             friendshipStatus: friendshipStatus ? friendshipStatus.status : null,
             friends: {

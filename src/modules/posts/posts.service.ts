@@ -296,5 +296,16 @@ export class PostService {
 
         return { message: 'Xóa bài viết thành công' };
     }
+    async getPostsMyUser(userId: number){
+        console.log('userid in post', userId)
+        const posts = await this.postRepo.find({
+            where: {
+                user:{id: userId}
+            },
+            relations: ['user', 'reactions', 'reactions.user', 'comments', 'originalPost', 'originalPost.user'],
+            order: {created_at: 'DESC'}
+        })
+        return posts.map(post => this.formatPostWithReactions(post))
+    }
 
 }

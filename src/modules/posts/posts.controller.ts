@@ -59,9 +59,17 @@ export class PostController {
   @Get('feed')
   getAllVisiblePosts(@Req() req) {
     const userId = req.user.userId;
-    console.log('👉 [getAllVisiblePosts Controller] userId:', userId);
     return this.postService.getAllVisiblePosts(userId);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('mypost')
+  getMyPost(@Req() req){
+    const userId = req.user.userId;
+    return this.postService.getPostsMyUser(userId)
+  }
+
+
   @HttpPost(':id/share')
   @UseGuards(JwtAuthGuard)
   async sharePost(
@@ -89,9 +97,6 @@ export class PostController {
   deletePost(@Param('id') id: number, @Req() req) {
     return this.postService.delete(Number(id), req.user.userId);
   }
-
-
-
 
   @Get(':id')
   getPostById(@Param('id') id: number) {

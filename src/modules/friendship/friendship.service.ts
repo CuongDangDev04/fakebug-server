@@ -431,9 +431,7 @@ export class FriendshipService {
 
     const friends = await Promise.all(friendships.map(async (friendship) => {
       const friend = friendship.userOne.id === targetUserId ? friendship.userTwo : friendship.userOne;
-      console.log('f', friend)
       const mutualFriends = await this.getMutualFriends(targetUserId, friend.id);
-      console.log('bạn chung', mutualFriends)
       return {
         id: friend.id,
         firstName: friend.first_name,
