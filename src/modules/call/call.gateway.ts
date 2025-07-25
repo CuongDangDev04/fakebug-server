@@ -70,9 +70,24 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (receiverSocket) {
       receiverSocket.emit('incoming-call', eventPayload);
       console.log(`📨 [start-call] Sent incoming-call to user ${data.receiverId}`);
+
+      // Sau khi gửi thành công thì gửi cho caller rằng call đã bắt đầu
+      socket.emit('call-started', eventPayload);
     } else {
       console.warn(`⚠️ [start-call] Receiver ${data.receiverId} not online`);
+
+      // Gửi event "user-not-online" về cho caller
+      socket.emit('user-not-online', {
+        callId: call.id,
+        receiverId: data.receiverId,
+        callerId: data.callerId,
+        reason: 'Receiver not online',
+      });
+
+      // Optionally: cũng end call trong DB nếu muốn
+      await this.callService.endCall(call.id, 'cancelled');
     }
+
 
     socket.emit('call-started', eventPayload);
   }
