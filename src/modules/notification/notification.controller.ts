@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { NotificationService } from "./notification.service";
 import { JwtAuthGuard } from "src/common/guards/jwt-auth.guard";
 @UseGuards(JwtAuthGuard)
@@ -17,12 +17,20 @@ export class NotificationController {
         await this.notificationService.notifyGlobal(body.message, body.url);
         return { status: 'ok' };
     }
+    
     @Get('all')
     getAllNotificationOfUser(
-        @Req() req
+        @Req() req,
+        @Query('offset') offset: string,
+        @Query('limit') limit: string,
     ) {
-        return this.notificationService.getAllNotificationOfUser(req.user.userId)
+        return this.notificationService.getAllNotificationOfUser(
+            req.user.userId,
+            parseInt(offset) || 0,
+            parseInt(limit) || 10
+        );
     }
+
     @Delete('delete/:id')
     deleteNotification(
         @Param('id') id: number
@@ -40,7 +48,7 @@ export class NotificationController {
         return this.notificationService.markAllAsRead(req.user.userId);
     }
     @Get('unread')
-    getUnreadNotification(@Req() req){
+    getUnreadNotification(@Req() req) {
         return this.notificationService.getUnreadNotification(req.user.userId)
     }
 }

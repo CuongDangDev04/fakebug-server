@@ -25,17 +25,24 @@ export class NotificationService {
     this.gateway.sendToAllSocket(saved);
     return saved;
   }
-  async getAllNotificationOfUser(userId: number) {
+  async getAllNotificationOfUser(userId: number, offset: number, limit: number) {
     if (!userId) {
-      throw new NotFoundException("user không hợp lệ")
+      throw new NotFoundException("user không hợp lệ");
     }
-    const notification = this.notificationRepo.find({
-      where: { userId: userId },
-      order: { createdAt: 'DESC' }
 
-    })
-    return notification
+    const [notifications, total] = await this.notificationRepo.findAndCount({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+      skip: offset,
+      take: limit,
+    });
+
+    return {
+      total,
+      notifications,
+    };
   }
+
   async deleteNotification(id: number) {
     if (!id) {
       throw new NotFoundException(`Thông báo với id ${id}`)
@@ -76,8 +83,8 @@ export class NotificationService {
     return "Đã đánh dấu tất cả thông báo là đã đọc";
   }
   async getUnreadNotification(userId: number) {
-    if(!userId){
-      throw new  NotFoundException("UserId không hợp lệ");
+    if (!userId) {
+      throw new NotFoundException("UserId không hợp lệ");
     };
     const noti = await this.notificationRepo.find({
       where: { userId: userId, isRead: false },
