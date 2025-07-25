@@ -218,6 +218,37 @@ export class UserService {
         return this.userDetailRepository.save(user.detail);
 
     }
+    async searchUsers(keyword: string, page = 1, limit = 10) {
+
+        const lowerKeyword = `%${keyword.toLowerCase()}%`;
+
+        const [users, total] = await this.userRepository
+            .createQueryBuilder('user')
+            .leftJoinAndSelect('user.detail', 'detail')
+            .where('LOWER(user.first_name) LIKE :keyword', { keyword: lowerKeyword })
+            .orWhere('LOWER(user.last_name) LIKE :keyword', { keyword: lowerKeyword })
+            .select([
+                'user.id',
+                'user.first_name',
+                'user.last_name',
+                'user.username',
+                'user.avatar_url',
+                'user.bio',
+                'detail.cover_url',
+            ])
+            .skip((page - 1) * limit)
+            .take(limit)
+            .getManyAndCount();
+        return {
+            data: users,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
+    }
 
 
 }

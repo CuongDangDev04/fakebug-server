@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, ParseIntPipe, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { UserService } from './user.service';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -48,4 +48,21 @@ export class UserController {
         const url = await this.cloudinaryService.uploadImage(file, 'covers');
         return this.userService.updateCover(userId, url);
     }
+    @Get('search')
+    async searchUsers(
+        @Query('q') q: string,
+        @Query('page') page = '1',
+        @Query('limit') limit = '10',
+    ) {
+        if (!q || q.trim() === '') {
+            throw new BadRequestException('Missing search query');
+        }
+
+        const currentPage = parseInt(page, 10);
+        const pageSize = parseInt(limit, 10);
+
+        return this.userService.searchUsers(q, currentPage, pageSize);
+    }
+
+
 }
