@@ -12,6 +12,7 @@ import {
   Get,
   Delete,
   Query,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PostService } from './posts.service';
@@ -97,7 +98,17 @@ export class PostController {
     return this.postService.getPostsMyUser(userId, offsetNumber, limitNumber);
   }
 
-
+  @UseGuards(JwtAuthGuard)
+  @Get('all-post-in-other-user/:userId')
+  getAllMyPostInProfileOtherUser(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Query('offset') offset: string,
+    @Query('limit') limit: string,
+  ) {
+    const offsetNumber = parseInt(offset) || 0;
+    const limitNumber = parseInt(limit) || 5;
+    return this.postService.getPostsMyUser(userId, offsetNumber, limitNumber);
+  }
 
   @HttpPost(':id/share')
   @UseGuards(JwtAuthGuard)
