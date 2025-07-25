@@ -11,6 +11,7 @@ import {
   Req,
   Get,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PostService } from './posts.service';
@@ -62,12 +63,15 @@ export class PostController {
     return this.postService.getAllVisiblePosts(userId);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Get('mypost')
-  getMyPost(@Req() req){
-    const userId = req.user.userId;
-    return this.postService.getPostsMyUser(userId)
-  }
+ @UseGuards(JwtAuthGuard)
+@Get('mypost')
+getMyPost(@Req() req, @Query('offset') offset: string, @Query('limit') limit: string) {
+  const userId = req.user.userId;
+  const offsetNumber = parseInt(offset) || 0;
+  const limitNumber = parseInt(limit) || 5;
+  return this.postService.getPostsMyUser(userId, offsetNumber, limitNumber);
+}
+
 
 
   @HttpPost(':id/share')
