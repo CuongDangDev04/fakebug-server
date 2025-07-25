@@ -67,7 +67,7 @@ export class PostService {
             where: { id },
             relations: ['user', 'reactions', 'reactions.user', 'comments', 'originalPost', 'originalPost.user'],
         });
-        console.log('post',post)
+        console.log('post', post)
         if (!post) throw new NotFoundException('Bài viết không tồn tại');
 
         return this.formatPostWithReactions(post);
@@ -162,19 +162,22 @@ export class PostService {
     }
 
     // Lấy các bài viết công khai
-    async getPublicPosts() {
+    async getPublicPosts(offset = 0, limit = 5) {
         const posts = await this.postRepo.find({
             where: { privacy: 'public' },
             relations: ['user', 'reactions', 'reactions.user', 'comments', 'originalPost', 'originalPost.user'],
             order: { created_at: 'DESC' },
+            skip: offset,
+            take: limit,
         });
 
         return posts.map(post => this.formatPostWithReactions(post));
     }
 
 
+
     // Lấy các bài viết riêng tư của chính người dùng
-    async getPrivatePosts(userId: number) {
+    async getPrivatePosts(userId: number, offset = 0, limit = 5) {
         const posts = await this.postRepo.find({
             where: {
                 user: { id: userId },
@@ -182,14 +185,17 @@ export class PostService {
             },
             relations: ['user', 'reactions', 'reactions.user', 'comments', 'originalPost', 'originalPost.user'],
             order: { created_at: 'DESC' },
+            skip: offset,
+            take: limit,
         });
 
         return posts.map(post => this.formatPostWithReactions(post));
     }
 
 
+
     // Lấy bài viết của bạn bè (và chính user)
-    async getFriendPosts(userId: number) {
+    async getFriendPosts(userId: number, offset = 0, limit = 5) {
         const friendships = await this.friendshipRepo.find({
             where: [
                 { userOne: { id: userId }, status: 'accepted' },
@@ -203,7 +209,6 @@ export class PostService {
                 ? friendship.userTwo.id
                 : friendship.userOne.id
         );
-
         friendIds.push(userId);
 
         const posts = await this.postRepo.find({
@@ -211,15 +216,17 @@ export class PostService {
                 user: { id: In(friendIds) },
                 privacy: 'friends',
             },
-            relations: ['user', 'reactions', 'reactions.user', 'comments'],
+            relations: ['user', 'reactions', 'reactions.user', 'comments', 'originalPost', 'originalPost.user'],
             order: { created_at: 'DESC' },
+            skip: offset,
+            take: limit,
         });
 
         return posts.map(post => this.formatPostWithReactions(post));
     }
 
     // Lấy tất cả bài viết mà user được phép xem
-    async getAllVisiblePosts(userId: number) {
+    async getAllVisiblePosts(userId: number, offset = 0, limit = 5) {
         const friendships = await this.friendshipRepo.find({
             where: [
                 { userOne: { id: userId }, status: 'accepted' },
@@ -233,7 +240,6 @@ export class PostService {
                 ? friendship.userTwo.id
                 : friendship.userOne.id
         );
-
         friendIds.push(userId);
 
         const posts = await this.postRepo.find({
@@ -244,10 +250,13 @@ export class PostService {
             ],
             relations: ['user', 'reactions', 'reactions.user', 'comments', 'originalPost', 'originalPost.user'],
             order: { created_at: 'DESC' },
+            skip: offset,
+            take: limit,
         });
 
         return posts.map(post => this.formatPostWithReactions(post));
     }
+
 
     private formatPostWithReactions(post: Post) {
         const reactions = post.reactions || [];
@@ -296,17 +305,17 @@ export class PostService {
 
         return { message: 'Xóa bài viết thành công' };
     }
-  async getPostsMyUser(userId: number, offset = 0, limit = 5) {
-    const posts = await this.postRepo.find({
-        where: { user: { id: userId } },
-        relations: ['user', 'reactions', 'reactions.user', 'comments', 'originalPost', 'originalPost.user'],
-        order: { created_at: 'DESC' },
-        skip: offset,
-        take: limit,
-    });
+    async getPostsMyUser(userId: number, offset = 0, limit = 5) {
+        const posts = await this.postRepo.find({
+            where: { user: { id: userId } },
+            relations: ['user', 'reactions', 'reactions.user', 'comments', 'originalPost', 'originalPost.user'],
+            order: { created_at: 'DESC' },
+            skip: offset,
+            take: limit,
+        });
 
-    return posts.map(post => this.formatPostWithReactions(post));
-}
+        return posts.map(post => this.formatPostWithReactions(post));
+    }
 
 
 }

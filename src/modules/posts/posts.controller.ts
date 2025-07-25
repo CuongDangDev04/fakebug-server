@@ -32,45 +32,70 @@ export class PostController {
   }
 
 
-
-
-  // Bài viết công khai
-  @Get('public')
-  getPublicPosts() {
-    return this.postService.getPublicPosts();
-  }
-
-  // Bài viết riêng tư  
   @UseGuards(JwtAuthGuard)
   @Get('private')
-  getPrivatePosts(@Req() req) {
-    return this.postService.getPrivatePosts(req.user.userId);
+  getPrivatePosts(
+    @Req() req,
+    @Query('offset') offset: string,
+    @Query('limit') limit: string
+  ) {
+    const userId = req.user.userId;
+    return this.postService.getPrivatePosts(
+      userId,
+      parseInt(offset) || 0,
+      parseInt(limit) || 5
+    );
   }
 
-  // Bài viết bạn bè 
   @UseGuards(JwtAuthGuard)
   @Get('friends')
-  getFriendPosts(@Req() req) {
-    const userId = req.user.id;
-    console.log('userId', userId)
-    return this.postService.getFriendPosts(userId);
+  getFriendPosts(
+    @Req() req,
+    @Query('offset') offset: string,
+    @Query('limit') limit: string
+  ) {
+    const userId = req.user.userId;
+    return this.postService.getFriendPosts(
+      userId,
+      parseInt(offset) || 0,
+      parseInt(limit) || 5
+    );
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('feed')
-  getAllVisiblePosts(@Req() req) {
+  getAllVisiblePosts(
+    @Req() req,
+    @Query('offset') offset: string,
+    @Query('limit') limit: string
+  ) {
     const userId = req.user.userId;
-    return this.postService.getAllVisiblePosts(userId);
+    return this.postService.getAllVisiblePosts(
+      userId,
+      parseInt(offset) || 0,
+      parseInt(limit) || 5
+    );
   }
 
- @UseGuards(JwtAuthGuard)
-@Get('mypost')
-getMyPost(@Req() req, @Query('offset') offset: string, @Query('limit') limit: string) {
-  const userId = req.user.userId;
-  const offsetNumber = parseInt(offset) || 0;
-  const limitNumber = parseInt(limit) || 5;
-  return this.postService.getPostsMyUser(userId, offsetNumber, limitNumber);
-}
+  @Get('public')
+  getPublicPosts(
+    @Query('offset') offset: string,
+    @Query('limit') limit: string
+  ) {
+    return this.postService.getPublicPosts(
+      parseInt(offset) || 0,
+      parseInt(limit) || 5
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('mypost')
+  getMyPost(@Req() req, @Query('offset') offset: string, @Query('limit') limit: string) {
+    const userId = req.user.userId;
+    const offsetNumber = parseInt(offset) || 0;
+    const limitNumber = parseInt(limit) || 5;
+    return this.postService.getPostsMyUser(userId, offsetNumber, limitNumber);
+  }
 
 
 
@@ -82,13 +107,13 @@ getMyPost(@Req() req, @Query('offset') offset: string, @Query('limit') limit: st
     @Body() body: { content: string; privacy: 'public' | 'private' | 'friends' }
   ) {
     const userId = req.user.userId;
-    console.log('userId',userId)
+    console.log('userId', userId)
 
     const dto: CreatePostDto = {
       userId,
       originalPostId: Number(id),
-      content: body.content || '',  
-      privacy: body.privacy || 'friends',  
+      content: body.content || '',
+      privacy: body.privacy || 'friends',
     };
 
     return this.postService.create(dto);
