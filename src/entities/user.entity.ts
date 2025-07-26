@@ -17,7 +17,6 @@ import { Friendship } from './friendship.entity';
 import { Call } from './call.entity';
 import { Notification } from './notification.entity';
 import { MessageReaction } from './message-reaction.entity';
-import { UserDetail } from './user-detail.entity';
 import { CommentReaction } from './comment-reaction.entity';
 
 
@@ -43,6 +42,9 @@ export class User {
 
   @Column({ nullable: true })
   avatar_url: string;
+
+  @Column({ nullable: true })
+  cover_url: string;
 
   @Column({ nullable: true })
   bio: string;
@@ -102,6 +104,4 @@ export class User {
   @OneToMany(() => MessageReaction, reaction => reaction.user)
   messageReactions: MessageReaction[];
 
-  @OneToOne(() => UserDetail, detail => detail.user, { cascade: true, eager: true })
-  detail: UserDetail;
 }

@@ -1,10 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Friendship } from 'src/entities/friendship.entity';
 import { User } from 'src/entities/user.entity';
 import { Repository } from 'typeorm';
-import { CloudinaryService } from '../cloudinary/cloudinary.service';
-import { UserDetail } from 'src/entities/user-detail.entity';
+import { UpdateUserProfileDto } from './dto/update-profile-user.dto';
 
 @Injectable()
 export class UserService {
@@ -13,9 +12,6 @@ export class UserService {
         private readonly userRepository: Repository<User>,
         @InjectRepository(Friendship)
         private readonly friendshipRepo: Repository<Friendship>,
-        @InjectRepository(UserDetail)
-        private readonly userDetailRepository: Repository<UserDetail>,
-
     ) { }
 
     async findByEmail(email: string): Promise<User | null> {
@@ -26,12 +22,15 @@ export class UserService {
         const user = this.userRepository.create(data);
         return this.userRepository.save(user);
     }
+
     async update(user: User): Promise<User> {
         return this.userRepository.save(user);
     }
+
     async findById(id: number): Promise<User | null> {
         return this.userRepository.findOne({ where: { id } });
     }
+
     async findByEmailOrUsername(identifier: string): Promise<User | null> {
         return this.userRepository.findOne({
             where: [
@@ -40,25 +39,20 @@ export class UserService {
             ],
         });
     }
-    async getInfoUser(userId: number) {
-        const user = await this.userRepository.findOne({
-            where: { id: userId }
-        })
-        if (!user) {
-            throw new NotFoundException('User not found')
-        }
-        return { user }
 
+    async getInfoUser(userId: number) {
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+        if (!user) throw new NotFoundException('User not found');
+        return { user };
     }
+
     async getOwnProfile(userId: number) {
         const user = await this.userRepository.findOne({
             where: { id: userId },
-            relations: ['posts', 'comments', 'reactions', 'detail'],  // Thêm quan hệ 'detail'
+            relations: ['posts', 'comments', 'reactions'],
         });
 
-        if (!user) {
-            throw new NotFoundException('User not found');
-        }
+        if (!user) throw new NotFoundException('User not found');
 
         const friends = await this.friendshipRepo
             .createQueryBuilder('friendship')
@@ -83,18 +77,7 @@ export class UserService {
                 bio: user.bio,
                 role: user.role,
                 provider: user.provider,
-                detail: user.detail ? {
-                    gender: user.detail.gender,
-                    date_of_birth: user.detail.date_of_birth,
-                    phone_number: user.detail.phone_number,
-                    address: user.detail.address,
-                    website: user.detail.website,
-                    career: user.detail.career,
-                    education: user.detail.education,
-                    relationship_status: user.detail.relationship_status,
-                    cover_url: user.detail.cover_url,
-                    gallery_images: user.detail.gallery_images,
-                } : null,
+                cover_url: user.cover_url,
             },
             friends: {
                 total: friends.length,
@@ -114,9 +97,8 @@ export class UserService {
             where: { id: userId },
             relations: ['posts', 'comments', 'reactions'],
         });
-        if (!user) {
-            throw new NotFoundException('User not found');
-        }
+
+        if (!user) throw new NotFoundException('User not found');
 
         const friends = await this.friendshipRepo
             .createQueryBuilder('friendship')
@@ -128,8 +110,10 @@ export class UserService {
 
         const friendshipStatus = await this.friendshipRepo
             .createQueryBuilder('friendship')
-            .where('(friendship.userOneId = :viewerId AND friendship.userTwoId = :userId) OR (friendship.userOneId = :userId AND friendship.userTwoId = :viewerId)',
-                { viewerId, userId })
+            .where(
+                '(friendship.userOneId = :viewerId AND friendship.userTwoId = :userId) OR (friendship.userOneId = :userId AND friendship.userTwoId = :viewerId)',
+                { viewerId, userId },
+            )
             .getOne();
 
         const friendUsers = friends
@@ -144,18 +128,7 @@ export class UserService {
                 username: user.username,
                 avatar_url: user.avatar_url,
                 bio: user.bio,
-                detail: user.detail ? {
-                    gender: user.detail.gender,
-                    date_of_birth: user.detail.date_of_birth,
-                    phone_number: user.detail.phone_number,
-                    address: user.detail.address,
-                    website: user.detail.website,
-                    career: user.detail.career,
-                    education: user.detail.education,
-                    relationship_status: user.detail.relationship_status,
-                    cover_url: user.detail.cover_url,
-                    gallery_images: user.detail.gallery_images,
-                } : null,
+                cover_url: user.cover_url,
             },
             friendshipStatus: friendshipStatus ? friendshipStatus.status : null,
             friends: {
@@ -168,16 +141,13 @@ export class UserService {
                     avatar_url: friend.avatar_url,
                 })),
             },
-        }
+        };
     }
-    async getPublicUserInfo(userId: number) {
-        const user = await this.userRepository.findOne({
-            where: { id: userId },
-        });
 
-        if (!user) {
-            throw new NotFoundException('User not found');
-        }
+    async getPublicUserInfo(userId: number) {
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+
+        if (!user) throw new NotFoundException('User not found');
 
         return {
             id: user.id,
@@ -188,6 +158,7 @@ export class UserService {
             bio: user.bio,
         };
     }
+
     async updateAvatar(userId: number, avatarUrl: string) {
         const user = await this.userRepository.findOne({ where: { id: userId } });
         if (!user) throw new NotFoundException('User not found');
@@ -197,34 +168,18 @@ export class UserService {
     }
 
     async updateCover(userId: number, coverUrl: string) {
-        const user = await this.userRepository.findOne({
-            where: { id: userId },
-            relations: ['detail'],
-        });
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+        if (!user) throw new NotFoundException('User not found');
 
-        if (!user) {
-            throw new NotFoundException('User not found');
-        }
-
-        if (!user.detail) {
-            user.detail = this.userDetailRepository.create({
-                user: user,
-                cover_url: coverUrl,
-            });
-        } else {
-            user.detail.cover_url = coverUrl;
-        }
-
-        return this.userDetailRepository.save(user.detail);
-
+        user.cover_url = coverUrl;
+        return this.userRepository.save(user);
     }
-    async searchUsers(keyword: string, page = 1, limit = 10) {
 
+    async searchUsers(keyword: string, page = 1, limit = 10) {
         const lowerKeyword = `%${keyword.toLowerCase()}%`;
 
         const [users, total] = await this.userRepository
             .createQueryBuilder('user')
-            .leftJoinAndSelect('user.detail', 'detail')
             .where('LOWER(user.first_name) LIKE :keyword', { keyword: lowerKeyword })
             .orWhere('LOWER(user.last_name) LIKE :keyword', { keyword: lowerKeyword })
             .select([
@@ -234,11 +189,12 @@ export class UserService {
                 'user.username',
                 'user.avatar_url',
                 'user.bio',
-                'detail.cover_url',
+                'user.cover_url',
             ])
             .skip((page - 1) * limit)
             .take(limit)
             .getManyAndCount();
+
         return {
             data: users,
             pagination: {
@@ -249,6 +205,32 @@ export class UserService {
             },
         };
     }
+    async updateProfile(userId: number, dto: UpdateUserProfileDto) {
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+        if (!user) throw new NotFoundException('Người dùng không tồn tại');
 
+        // Kiểm tra username đã tồn tại chưa (nếu có sửa)
+        if (dto.username && dto.username !== user.username) {
+            const existingUser = await this.userRepository.findOne({
+                where: { username: dto.username },
+            });
+            if (existingUser) throw new BadRequestException('Tên người dùng đã tồn tại');
+        }
 
+        Object.assign(user, dto);
+        const updatedUser = await this.userRepository.save(user);
+
+        return {
+            message: 'Cập nhật thông tin cá nhân thành công',
+            user: {
+                id: updatedUser.id,
+                first_name: updatedUser.first_name,
+                last_name: updatedUser.last_name,
+                username: updatedUser.username,
+                bio: updatedUser.bio,
+                avatar_url: updatedUser.avatar_url,
+                cover_url: updatedUser.cover_url,
+            },
+        };
+    }
 }

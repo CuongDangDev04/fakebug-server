@@ -5,10 +5,9 @@ import { User } from 'src/entities/user.entity';
 import { UserController } from './user.controller';
 import { Friendship } from 'src/entities/friendship.entity';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
-import { UserDetail } from 'src/entities/user-detail.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User,Friendship,UserDetail]),CloudinaryModule],
+  imports: [TypeOrmModule.forFeature([User,Friendship]),CloudinaryModule],
   providers: [UserService],
   exports: [UserService],
   controllers: [UserController],

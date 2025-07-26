@@ -1,8 +1,9 @@
-import { BadRequestException, Body, Controller, Get, Param, ParseIntPipe, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, ParseIntPipe, Post, Put, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { UserService } from './user.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { UpdateUserProfileDto } from './dto/update-profile-user.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('user')
@@ -62,6 +63,15 @@ export class UserController {
         const pageSize = parseInt(limit, 10);
 
         return this.userService.searchUsers(q, currentPage, pageSize);
+    }
+    
+    @UseGuards(JwtAuthGuard)
+    @Put('me')
+    async updateMyProfile(
+        @Req() req,
+        @Body() dto: UpdateUserProfileDto,
+    ) {
+        return this.userService.updateProfile(req.user.id, dto);
     }
 
 
