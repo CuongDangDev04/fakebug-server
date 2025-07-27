@@ -6,9 +6,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Message } from '../../entities/message.entity';
 import { User } from '../../entities/user.entity';
 import { MessageReaction } from 'src/entities/message-reaction.entity';
+import { MessageBlock } from 'src/entities/message-block.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Message, User, MessageReaction])],
+  imports: [TypeOrmModule.forFeature([Message, User, MessageReaction,MessageBlock])],
   controllers: [MessageController],
   providers: [MessageService, MessageGateway]
 })

@@ -4,6 +4,7 @@ import { Message } from '../../entities/message.entity';
 import { Brackets, Repository } from 'typeorm';
 import { User } from '../../entities/user.entity';
 import { MessageReaction } from 'src/entities/message-reaction.entity';
+import { MessageBlock } from 'src/entities/message-block.entity';
 
 @Injectable()
 export class MessageService {
@@ -14,12 +15,27 @@ export class MessageService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(MessageReaction)
     private readonly reactionRepository: Repository<MessageReaction>,
+    @InjectRepository(MessageBlock)
+    private readonly messageBlockRepo: Repository<MessageBlock>,
+
   ) { }
 
   async sendMessage(senderId: number, receiverId: number, content: string) {
     const sender = await this.userRepository.findOne({ where: { id: senderId } });
     const receiver = await this.userRepository.findOne({ where: { id: receiverId } });
     if (!sender || !receiver) throw new Error('Sender or receiver not found');
+
+    const isBlocked = await this.messageBlockRepo.findOne({
+      where: [
+        { blocker: { id: senderId }, blocked: { id: receiverId } },
+        { blocker: { id: receiverId }, blocked: { id: senderId } },
+      ],
+    });
+
+    if (isBlocked) {
+      throw new BadRequestException('Cannot send message due to message block.');
+    }
+
     const message = this.messageRepository.create({ sender, receiver, content });
     return this.messageRepository.save(message);
   }
@@ -298,6 +314,48 @@ export class MessageService {
     await this.messageRepository.save(messages);
     return { message: 'Conversation deleted for you' };
   }
+  async blockMessageUser(blockerId: number, blockedId: number) {
+    if (blockerId === blockedId) throw new BadRequestException('Không thể tự chặn chính mình');
 
+    const existing = await this.messageBlockRepo.findOne({
+      where: { blocker: { id: blockerId }, blocked: { id: blockedId } },
+    });
+
+    if (existing) return { message: 'Đã chặn người dùng này rồi' };
+
+    const block = this.messageBlockRepo.create({
+      blocker: { id: blockerId },
+      blocked: { id: blockedId },
+    });
+
+    await this.messageBlockRepo.save(block);
+    return { message: 'Đã chặn tin nhắn thành công' };
+  }
+
+
+  async unblockMessageUser(blockerId: number, blockedId: number) {
+    const result = await this.messageBlockRepo.delete({
+      blocker: { id: blockerId },
+      blocked: { id: blockedId },
+    });
+
+    if (result.affected === 0) throw new NotFoundException('No block record found');
+    return { message: 'Unblocked user for messages' };
+  }
+
+  async checkMessageBlock(userId1: number, userId2: number) {
+    const block = await this.messageBlockRepo.findOne({
+      where: [
+        { blocker: { id: userId1 }, blocked: { id: userId2 } },
+        { blocker: { id: userId2 }, blocked: { id: userId1 } },
+      ],
+      relations: ['blocker', 'blocked'],
+    });
+
+    return {
+      isBlocked: !!block,
+      blockedBy: block ? block.blocker.id : null,
+    };
+  }
 
 }

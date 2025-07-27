@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Query, Param, Req, UseGuards, Put } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query, Param, Req, UseGuards, Put, Delete } from '@nestjs/common';
 import { MessageService } from './message.service';
 import { MessageGateway } from './message.gateway';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
@@ -85,6 +85,32 @@ export class MessageController {
   ) {
     const result = await this.messageService.deleteConversation(req.user.userId, otherUserId);
     return result;
+  }
+  @UseGuards(JwtAuthGuard)
+  @Post('block/:blockedId')
+  async blockMessageUser(
+    @Req() req,
+    @Param('blockedId') blockedId: number,
+  ) {
+    return this.messageService.blockMessageUser(req.user.userId, blockedId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('unblock/:blockedId')
+  async unblockMessageUser(
+    @Req() req,
+    @Param('blockedId') blockedId: number,
+  ) {
+    return this.messageService.unblockMessageUser(req.user.userId, blockedId);
+  }
+  @UseGuards(JwtAuthGuard)
+  @Get('check-block/:otherUserId')
+  async checkBlock(
+    @Req() req,
+    @Param('otherUserId') otherUserId: number,
+  ) {
+    const currentUserId = req.user.userId;
+    return this.messageService.checkMessageBlock(currentUserId, otherUserId);
   }
 
 }

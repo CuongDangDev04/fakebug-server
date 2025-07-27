@@ -18,6 +18,7 @@ import { Call } from './call.entity';
 import { Notification } from './notification.entity';
 import { MessageReaction } from './message-reaction.entity';
 import { CommentReaction } from './comment-reaction.entity';
+import { MessageBlock } from './message-block.entity';
 
 
 @Entity()
@@ -103,5 +104,12 @@ export class User {
 
   @OneToMany(() => MessageReaction, reaction => reaction.user)
   messageReactions: MessageReaction[];
+
+  //chặn tin nhắn
+  @OneToMany(() => MessageBlock, block => block.blocker)
+  blockedMessageUsers: MessageBlock[];
+
+  @OneToMany(() => MessageBlock, block => block.blocked)
+  blockedByMessageUsers: MessageBlock[];
 
 }
