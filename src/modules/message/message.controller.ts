@@ -55,7 +55,7 @@ export class MessageController {
     await this.messageGateway.handleMarkAsRead(req.user.userId, friendId)
     return { success: true }
   }
-  
+
   @UseGuards(JwtAuthGuard)
   @Put('revoke/:messageId')
   async revokeMessage(@Req() req, @Param('messageId') messageId: number) {
@@ -72,10 +72,19 @@ export class MessageController {
 
   @UseGuards(JwtAuthGuard)
   @Put('delete-for-me/:messageId')
-  async deleteMessageForMe(@Req() req, @Param('messageId') messageId: number){
-     await this.messageService.deletedMessageForMe(messageId, req.user.userId);
-    return {success: true}
+  async deleteMessageForMe(@Req() req, @Param('messageId') messageId: number) {
+    await this.messageService.deletedMessageForMe(messageId, req.user.userId);
+    return { success: true }
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Put('delete-conversation/:otherUserId')
+  async deleteConversation(
+    @Req() req,
+    @Param('otherUserId') otherUserId: number
+  ) {
+    const result = await this.messageService.deleteConversation(req.user.userId, otherUserId);
+    return result;
+  }
 
 }

@@ -76,9 +76,17 @@ export class MessageService {
   }
 
   async getLastMessageWithFriends(userId: number) {
-    // Lấy tất cả các tin nhắn mà user này là sender hoặc receiver, chỉ lấy id, content, sent_at, senderId, receiverId
     const messages = await this.messageRepository.find({
-      select: ['id', 'content', 'sent_at', 'sender', 'receiver', 'is_read'],
+      select: [
+        'id',
+        'content',
+        'sent_at',
+        'sender',
+        'receiver',
+        'is_read',
+        'is_deleted_for_sender',
+        'is_deleted_for_receiver',
+      ],
       where: [
         { sender: { id: userId } },
         { receiver: { id: userId } },
@@ -93,15 +101,22 @@ export class MessageService {
 
     messages.forEach(msg => {
       const isSenderMe = msg.sender.id === userId;
+
+      // Bỏ qua nếu tin nhắn đã bị xóa bởi phía tương ứng
+      if ((isSenderMe && msg.is_deleted_for_sender) || (!isSenderMe && msg.is_deleted_for_receiver)) {
+        return;
+      }
+
       const friend = isSenderMe ? msg.receiver : msg.sender;
       const friendId = friend.id;
 
-      // Đếm tổng số tin nhắn chưa đọc gửi tới userId từ từng bạn bè
+      // Đếm tin chưa đọc
       if (!isSenderMe && !msg.is_read) {
         totalUnreadCount += 1;
         unreadCountMap.set(friendId, (unreadCountMap.get(friendId) || 0) + 1);
       }
 
+      // Nếu chưa có message với friend này, thêm vào
       if (!friendLastMessageMap.has(friendId)) {
         friendLastMessageMap.set(friendId, {
           id: msg.id,
@@ -112,8 +127,8 @@ export class MessageService {
           friendId: friend.id,
           friendName: friend.first_name + ' ' + friend.last_name,
           avatar_url: friend.avatar_url,
-          is_read: isSenderMe ? true : msg.is_read, // Nếu là mình gửi thì luôn là đã đọc, còn lại lấy trạng thái thực
-          unreadCount: 0, // sẽ cập nhật bên dưới
+          is_read: isSenderMe ? true : msg.is_read,
+          unreadCount: 0, // cập nhật sau
         });
       }
     });
@@ -234,13 +249,13 @@ export class MessageService {
   }
   async forwardMessage(messageId: number, senderId: number, receiverId: number) {
     if (senderId === receiverId) {
-    throw new BadRequestException('Không thể chuyển tiếp tin nhắn cho chính bạn.');
-  }
+      throw new BadRequestException('Không thể chuyển tiếp tin nhắn cho chính bạn.');
+    }
     const originalMessage = await this.messageRepository.findOne({
       where: { id: messageId },
       relations: ['sender', 'receiver'],
     });
-    console.log('originalMessage',originalMessage)
+    console.log('originalMessage', originalMessage)
     if (!originalMessage) {
       throw new NotFoundException('Original message not found');
     }
@@ -253,7 +268,7 @@ export class MessageService {
     }
 
     const forwardedContent = `${originalMessage.content}`;
-    console.log('forwardedContent',forwardedContent)
+    console.log('forwardedContent', forwardedContent)
     const newMessage = this.messageRepository.create({
       sender,
       receiver,
@@ -261,6 +276,27 @@ export class MessageService {
     });
 
     return this.messageRepository.save(newMessage);
+  }
+  //xoá cuộc trò chuyện ở bên user
+  async deleteConversation(userId: number, otherUserId: number) {
+    const messages = await this.messageRepository.find({
+      where: [
+        { sender: { id: userId }, receiver: { id: otherUserId }, is_deleted_for_sender: false },
+        { sender: { id: otherUserId }, receiver: { id: userId }, is_deleted_for_receiver: false },
+      ],
+      relations: ['sender', 'receiver']
+    });
+
+    for (const msg of messages) {
+      if (msg.sender.id === userId) {
+        msg.is_deleted_for_sender = true;
+      } else if (msg.receiver.id === userId) {
+        msg.is_deleted_for_receiver = true;
+      }
+    }
+
+    await this.messageRepository.save(messages);
+    return { message: 'Conversation deleted for you' };
   }
 
 
