@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Brackets, In, Repository } from 'typeorm';
 import { Post } from 'src/entities/post.entity';
 import { User } from 'src/entities/user.entity';
 import { CreatePostDto } from './dto/create-post.dto';
@@ -139,26 +139,56 @@ export class PostService {
         return !!friendship;
     }
 
-    async getPostForUser(postId: number, viewerId: number) {
-        const post = await this.postRepo.findOne({
-            where: { id: postId },
-            relations: ['user'],
-        });
+    // async getPostForUser(postId: number, viewerId: number) {
+    //     const post = await this.postRepo.findOne({
+    //         where: { id: postId },
+    //         relations: ['user'],
+    //     });
 
-        if (!post) throw new NotFoundException('Bài viết không tồn tại');
+    //     if (!post) throw new NotFoundException('Bài viết không tồn tại');
 
-        if (post.privacy === 'private' && post.user.id !== viewerId) {
-            throw new BadRequestException('Bạn không có quyền xem bài viết này');
-        }
+    //     if (post.privacy === 'private' && post.user.id !== viewerId) {
+    //         throw new BadRequestException('Bạn không có quyền xem bài viết này');
+    //     }
 
-        if (post.privacy === 'friends') {
-            const isFriend = await this.checkFriendship(post.user.id, viewerId);
-            if (!isFriend && post.user.id !== viewerId) {
-                throw new BadRequestException('Bạn không có quyền xem bài viết này');
-            }
-        }
+    //     if (post.privacy === 'friends') {
+    //         const isFriend = await this.checkFriendship(post.user.id, viewerId);
+    //         if (!isFriend && post.user.id !== viewerId) {
+    //             throw new BadRequestException('Bạn không có quyền xem bài viết này');
+    //         }
+    //     }
 
-        return post;
+    //     return post;
+    // }
+
+    private buildPostQueryBuilder() {
+        return this.postRepo
+            .createQueryBuilder('post')
+            .leftJoinAndSelect('post.user', 'user')
+            .leftJoinAndSelect('post.reactions', 'reaction')
+            .leftJoinAndSelect('reaction.user', 'reactionUser')
+            .leftJoinAndSelect('post.comments', 'comment')
+            .leftJoinAndSelect('post.originalPost', 'originalPost')
+            .leftJoinAndSelect('originalPost.user', 'originalPostUser')
+            .select([
+                'post',
+                'user.id',
+                'user.email',
+                'user.first_name',
+                'user.last_name',
+                'user.avatar_url',
+                'reaction',
+                'reactionUser.id',
+                'reactionUser.first_name',
+                'reactionUser.last_name',
+                'reactionUser.avatar_url',
+                'comment',
+                'originalPost',
+                'originalPostUser.id',
+                'originalPostUser.first_name',
+                'originalPostUser.last_name',
+                'originalPostUser.avatar_url',
+            ]);
     }
 
     // Lấy các bài viết công khai
@@ -174,25 +204,18 @@ export class PostService {
         return posts.map(post => this.formatPostWithReactions(post));
     }
 
-
-
     // Lấy các bài viết riêng tư của chính người dùng
     async getPrivatePosts(userId: number, offset = 0, limit = 5) {
-        const posts = await this.postRepo.find({
-            where: {
-                user: { id: userId },
-                privacy: 'private',
-            },
-            relations: ['user', 'reactions', 'reactions.user', 'comments', 'originalPost', 'originalPost.user'],
-            order: { created_at: 'DESC' },
-            skip: offset,
-            take: limit,
-        });
+        const posts = await this.buildPostQueryBuilder()
+            .where('post.user.id = :userId', { userId })
+            .andWhere('post.privacy = :privacy', { privacy: 'private' })
+            .orderBy('post.created_at', 'DESC')
+            .skip(offset)
+            .take(limit)
+            .getMany();
 
         return posts.map(post => this.formatPostWithReactions(post));
     }
-
-
 
     // Lấy bài viết của bạn bè (và chính user)
     async getFriendPosts(userId: number, offset = 0, limit = 5) {
@@ -209,23 +232,22 @@ export class PostService {
                 ? friendship.userTwo.id
                 : friendship.userOne.id
         );
-        friendIds.push(userId);
+        friendIds.push(userId); // Bao gồm chính user
 
-        const posts = await this.postRepo.find({
-            where: {
-                user: { id: In(friendIds) },
+        const posts = await this.buildPostQueryBuilder()
+            .where('post.privacy = :privacy AND post.user.id IN (:...friendIds)', {
                 privacy: 'friends',
-            },
-            relations: ['user', 'reactions', 'reactions.user', 'comments', 'originalPost', 'originalPost.user'],
-            order: { created_at: 'DESC' },
-            skip: offset,
-            take: limit,
-        });
+                friendIds,
+            })
+            .orderBy('post.created_at', 'DESC')
+            .skip(offset)
+            .take(limit)
+            .getMany();
 
         return posts.map(post => this.formatPostWithReactions(post));
     }
 
-    // Lấy tất cả bài viết mà user được phép xem
+    //lấy tất cả bài viết user có thể thấy
     async getAllVisiblePosts(userId: number, offset = 0, limit = 5) {
         const friendships = await this.friendshipRepo.find({
             where: [
@@ -242,21 +264,22 @@ export class PostService {
         );
         friendIds.push(userId);
 
-        const posts = await this.postRepo.find({
-            where: [
-                { privacy: 'public' },
-                { privacy: 'friends', user: { id: In(friendIds) } },
-                { privacy: 'private', user: { id: userId } },
-            ],
-            relations: ['user', 'reactions', 'reactions.user', 'comments', 'originalPost', 'originalPost.user'],
-            order: { created_at: 'DESC' },
-            skip: offset,
-            take: limit,
-        });
+        const qb = this.buildPostQueryBuilder();
 
+        qb.where(
+            new Brackets(qb => {
+                qb.where('post.privacy = :public', { public: 'public' })
+                    .orWhere('post.privacy = :friends AND post.user.id IN (:...friendIds)', { friends: 'friends', friendIds })
+                    .orWhere('post.privacy = :private AND post.user.id = :userId', { private: 'private', userId });
+            }),
+        )
+            .orderBy('post.created_at', 'DESC')
+            .skip(offset)
+            .take(limit);
+
+        const posts = await qb.getMany();
         return posts.map(post => this.formatPostWithReactions(post));
     }
-
 
     private formatPostWithReactions(post: Post) {
         const reactions = post.reactions || [];
@@ -287,6 +310,7 @@ export class PostService {
                 : null,
         };
     }
+
     async delete(id: number, userId: number): Promise<{ message: string }> {
         const post = await this.postRepo.findOne({
             where: { id },
@@ -305,17 +329,19 @@ export class PostService {
 
         return { message: 'Xóa bài viết thành công' };
     }
+    
     async getPostsMyUser(userId: number, offset = 0, limit = 5) {
-        const posts = await this.postRepo.find({
-            where: { user: { id: userId } },
-            relations: ['user', 'reactions', 'reactions.user', 'comments', 'originalPost', 'originalPost.user'],
-            order: { created_at: 'DESC' },
-            skip: offset,
-            take: limit,
-        });
+        const posts = await this.buildPostQueryBuilder()
+            .where('post.user.id = :userId', { userId })
+            .orderBy('post.created_at', 'DESC')
+            .skip(offset)
+            .take(limit)
+            .getMany();
 
         return posts.map(post => this.formatPostWithReactions(post));
     }
+
+
 
 
 }
