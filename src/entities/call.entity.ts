@@ -29,10 +29,10 @@ export class Call {
 
   @Column({
     type: 'enum',
-    enum: ['ongoing', 'missed', 'ended', 'rejected', 'cancelled'],
+    enum: ['ongoing', 'missed', 'ended', 'rejected', 'cancelled', 'busy'],
     default: 'ongoing',
   })
-  status: 'ongoing' | 'missed' | 'ended' | 'rejected' | 'cancelled';
+  status: 'ongoing' | 'missed' | 'ended' | 'rejected' | 'cancelled' | 'busy';
 
 
   // Tin nhắn liên kết với cuộc gọi
