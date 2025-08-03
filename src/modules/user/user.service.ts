@@ -41,10 +41,28 @@ export class UserService {
     }
 
     async getInfoUser(userId: number) {
-        const user = await this.userRepository.findOne({ where: { id: userId } });
+        const user = await this.userRepository
+            .createQueryBuilder('user')
+            .select([
+                'user.id',
+                'user.first_name',
+                'user.last_name',
+                'user.username',
+                'user.email',
+                'user.avatar_url',
+                'user.cover_url',
+                'user.bio',
+                'user.role',
+                'user.provider',
+            ])
+            .where('user.id = :userId', { userId })
+            .getOne();
+
         if (!user) throw new NotFoundException('User not found');
+
         return { user };
     }
+
 
     async getOwnProfile(userId: number) {
         const user = await this.userRepository.findOne({
