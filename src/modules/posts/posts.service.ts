@@ -6,6 +6,8 @@ import { User } from 'src/entities/user.entity';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CloudinaryService } from 'src/modules/cloudinary/cloudinary.service';
 import { Friendship } from 'src/entities/friendship.entity';
+import { PostReport } from 'src/entities/post-report.entity';
+import { ReportPostDto } from './dto/report-post.dto';
 
 @Injectable()
 export class PostService {
@@ -16,7 +18,10 @@ export class PostService {
         private userRepo: Repository<User>,
         private cloudinaryService: CloudinaryService,
         @InjectRepository(Friendship)
-        private friendshipRepo: Repository<Friendship>
+        private friendshipRepo: Repository<Friendship>,
+        @InjectRepository(PostReport)
+        private postReportRepo: Repository<PostReport>
+
     ) { }
 
     async create(dto: CreatePostDto, file?: Express.Multer.File) {
@@ -329,7 +334,7 @@ export class PostService {
 
         return { message: 'Xóa bài viết thành công' };
     }
-    
+
     async getPostsMyUser(userId: number, offset = 0, limit = 5) {
         const posts = await this.buildPostQueryBuilder()
             .where('post.user.id = :userId', { userId })
@@ -341,6 +346,93 @@ export class PostService {
         return posts.map(post => this.formatPostWithReactions(post));
     }
 
+    async reportPost(dto: ReportPostDto) {
+        const [reporter, post] = await Promise.all([
+            this.userRepo.findOne({ where: { id: dto.reporterId } }),
+            this.postRepo.findOne({ where: { id: dto.postId }, relations: ['user'] }),
+        ]);
+
+        if (!reporter) {
+            throw new NotFoundException('Người báo cáo không tồn tại');
+        }
+
+        if (!post) {
+            throw new NotFoundException('Bài viết không tồn tại');
+        }
+
+        if (reporter.id === post.user.id) {
+            throw new BadRequestException('Bạn không thể báo cáo bài viết của chính mình');
+        }
+
+        const existingReport = await this.postReportRepo.findOne({
+            where: {
+                reporter: { id: reporter.id },
+                post: { id: post.id },
+            },
+        });
+
+        if (existingReport) {
+            throw new BadRequestException('Bạn đã báo cáo bài viết này trước đó');
+        }
+
+        const newReport = this.postReportRepo.create({
+            reporter,
+            post,
+            reportedUser: post.user, // lấy từ post
+            reason: dto.reason,
+        });
+
+        await this.postReportRepo.save(newReport);
+
+        return { message: 'Báo cáo bài viết thành công' };
+    }
+
+    async getAllPostReport(offset = 0, limit = 10) {
+        const [reports, total] = await this.postReportRepo
+            .createQueryBuilder('report')
+            .leftJoinAndSelect('report.reporter', 'reporter')
+            .leftJoinAndSelect('report.reportedUser', 'reportedUser')
+            .leftJoinAndSelect('report.post', 'post')
+            .leftJoinAndSelect('post.user', 'postOwner')
+            .orderBy('report.created_at', 'DESC')
+            .skip(offset)
+            .take(limit)
+            .getManyAndCount();
+
+        const formattedReports = reports.map(r => ({
+            id: r.id,
+            reason: r.reason,
+            created_at: r.created_at,
+
+            reporter: {
+                id: r.reporter.id,
+                first_name: r.reporter.first_name,
+                last_name: r.reporter.last_name,
+                avatar_url: r.reporter.avatar_url,
+            },
+
+            reportedUser: {
+                id: r.reportedUser.id,
+                first_name: r.reportedUser.first_name,
+                last_name: r.reportedUser.last_name,
+                avatar_url: r.reportedUser.avatar_url,
+            },
+
+            post: {
+                id: r.post.id,
+                content: r.post.content,
+                media_url: r.post.media_url,
+                privacy: r.post.privacy,
+            }
+        }));
+
+        return {
+            total,
+            page: Math.floor(offset / limit) + 1,
+            limit,
+            data: formattedReports,
+        };
+    }
 
 
 

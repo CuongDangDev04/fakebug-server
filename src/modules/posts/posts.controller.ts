@@ -18,6 +18,9 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { PostService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { ReportPostDto } from './dto/report-post.dto';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { RolesGuard } from 'src/common/guards/roles.guard';
 
 @Controller('posts')
 export class PostController {
@@ -99,6 +102,12 @@ export class PostController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @HttpPost('report')
+  reportPost(@Body() dto: ReportPostDto) {
+    return this.postService.reportPost(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('all-post-in-other-user/:userId')
   getAllMyPostInProfileOtherUser(
     @Param('userId', ParseIntPipe) userId: number,
@@ -108,6 +117,14 @@ export class PostController {
     const offsetNumber = parseInt(offset) || 0;
     const limitNumber = parseInt(limit) || 5;
     return this.postService.getPostsMyUser(userId, offsetNumber, limitNumber);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @Get('all-report')
+  getAllReport(@Query('page') page = 1, @Query('limit') limit = 10) {
+    const offset = (page - 1) * limit;
+    return this.postService.getAllPostReport(offset, Number(limit));
   }
 
   @HttpPost(':id/share')
