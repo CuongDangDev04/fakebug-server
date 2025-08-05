@@ -44,7 +44,9 @@ export class AuthService {
         provider,
       });
     }
-
+    if (user.is_disabled) {
+      throw new UnauthorizedException('Tài khoản của bạn đã bị vô hiệu hóa');
+    }
     const payload = { sub: user.id, email: user.email, role: user.role };
 
     // Tạo access token (15 phút)
@@ -128,12 +130,16 @@ export class AuthService {
     const user = await this.userService.findByEmailOrUsername(emailOrUsername);
 
     if (!user || !user.password_hash) {
-      throw new BadRequestException('Invalid email/username or password');
+      throw new BadRequestException('Email/username hoặc mật khẩu không chính xác');
+    }
+
+    if (user.is_disabled) {
+      throw new UnauthorizedException('Tài khoản của bạn đã bị vô hiệu hóa');
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
     if (!isPasswordValid) {
-      throw new BadRequestException('Invalid email/username or password');
+      throw new BadRequestException('Email/username hoặc mật khẩu không chính xác');
     }
 
     // Payload dùng cho cả access và refresh

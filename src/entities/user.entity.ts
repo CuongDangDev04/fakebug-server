@@ -2,12 +2,7 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  CreateDateColumn,
-  UpdateDateColumn,
   OneToMany,
-  ManyToMany,
-  JoinTable,
-  OneToOne,
 } from 'typeorm';
 import { Post } from './post.entity';
 import { Comment } from './comment.entity';
@@ -60,6 +55,9 @@ export class User {
 
   @Column({ type: 'text', nullable: true })
   refresh_token: string;
+
+  @Column({ default: false })
+  is_disabled: boolean;
 
   // Một user có nhiều bài viết
   @OneToMany(() => Post, post => post.user)

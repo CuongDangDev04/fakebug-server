@@ -1,9 +1,10 @@
-import { BadRequestException, Body, Controller, Get, Param, ParseIntPipe, Post, Put, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, ParseBoolPipe, ParseIntPipe, Post, Put, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { UserService } from './user.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { UpdateUserProfileDto } from './dto/update-profile-user.dto';
+import { Roles } from 'src/common/decorators/roles.decorator';
 
 @UseGuards(JwtAuthGuard)
 @Controller('user')
@@ -64,7 +65,7 @@ export class UserController {
 
         return this.userService.searchUsers(q, currentPage, pageSize);
     }
-    
+
     @UseGuards(JwtAuthGuard)
     @Put('me')
     async updateMyProfile(
@@ -74,5 +75,28 @@ export class UserController {
         return this.userService.updateProfile(req.user.userId, dto);
     }
 
+    /**
+      * 📌 Lấy danh sách người dùng theo vai trò (admin hoặc user)
+      */
+    @Roles('admin')
+    @Get('role/:role')
+    async getUsersByRole(
+        @Param('role') role: 'user' | 'admin',
+        @Query('page') page = 1,
+        @Query('limit') limit = 10,
+    ) {
+        return this.userService.getUsersByRole(role, Number(page), Number(limit));
+    }
 
+    /**
+     * 🚫 Kích hoạt / Vô hiệu hóa tài khoản người dùng
+     */
+    @Roles('admin')
+    @Put(':id/status')
+    async toggleUserStatus(
+        @Param('id', ParseIntPipe) id: number,
+        @Query('disable', ParseBoolPipe) disable: boolean
+    ) {
+        return this.userService.toggleUserStatus(id, disable);
+    }
 }

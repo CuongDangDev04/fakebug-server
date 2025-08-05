@@ -54,6 +54,7 @@ export class UserService {
                 'user.bio',
                 'user.role',
                 'user.provider',
+                'user.is_disabled'
             ])
             .where('user.id = :userId', { userId })
             .getOne();
@@ -251,4 +252,45 @@ export class UserService {
             },
         };
     }
+    async getUsersByRole(role: 'user' | 'admin', page = 1, limit = 10) {
+        const [users, total] = await this.userRepository.findAndCount({
+            where: { role },
+            skip: (page - 1) * limit,
+            take: limit,
+            select: [
+                'id', 'first_name', 'last_name', 'username',
+                'email', 'avatar_url', 'bio', 'role', 'is_disabled',
+            ],
+        });
+
+        return {
+            users,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        };
+    }
+
+    async toggleUserStatus(userId: number, disable: boolean) {
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+        if (!user) throw new NotFoundException('User not found');
+
+        if (user.role === 'admin') {
+            throw new BadRequestException('Không thể vô hiệu hóa tài khoản admin');
+        }
+
+        user.is_disabled = disable;
+        await this.userRepository.save(user);
+
+        return {
+            message: disable ? 'Tài khoản đã bị vô hiệu hóa' : 'Tài khoản đã được kích hoạt lại',
+            user: {
+                id: user.id,
+                username: user.username,
+                is_disabled: user.is_disabled,
+            },
+        };
+    }
+
 }
