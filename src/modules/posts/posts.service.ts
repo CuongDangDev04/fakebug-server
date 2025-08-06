@@ -345,10 +345,9 @@ export class PostService {
 
         return posts.map(post => this.formatPostWithReactions(post));
     }
-
-    async reportPost(dto: ReportPostDto) {
+    async reportPost(dto: { postId: number; reason: string }, reporterId: number) {
         const [reporter, post] = await Promise.all([
-            this.userRepo.findOne({ where: { id: dto.reporterId } }),
+            this.userRepo.findOne({ where: { id: reporterId } }),
             this.postRepo.findOne({ where: { id: dto.postId }, relations: ['user'] }),
         ]);
 
@@ -364,21 +363,12 @@ export class PostService {
             throw new BadRequestException('Bạn không thể báo cáo bài viết của chính mình');
         }
 
-        const existingReport = await this.postReportRepo.findOne({
-            where: {
-                reporter: { id: reporter.id },
-                post: { id: post.id },
-            },
-        });
-
-        if (existingReport) {
-            throw new BadRequestException('Bạn đã báo cáo bài viết này trước đó');
-        }
+        // XÓA phần kiểm tra trùng lặp để cho phép báo cáo nhiều lần
 
         const newReport = this.postReportRepo.create({
             reporter,
             post,
-            reportedUser: post.user, // lấy từ post
+            reportedUser: post.user,
             reason: dto.reason,
         });
 
@@ -386,6 +376,9 @@ export class PostService {
 
         return { message: 'Báo cáo bài viết thành công' };
     }
+
+
+
 
     async getAllPostReport(offset = 0, limit = 10) {
         const [reports, total] = await this.postReportRepo

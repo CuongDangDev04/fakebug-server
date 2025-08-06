@@ -14,6 +14,7 @@ import {
   Query,
   ParseIntPipe,
   Patch,
+  Post,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PostService } from './posts.service';
@@ -101,11 +102,11 @@ export class PostController {
     const limitNumber = parseInt(limit) || 5;
     return this.postService.getPostsMyUser(userId, offsetNumber, limitNumber);
   }
-
   @UseGuards(JwtAuthGuard)
-  @HttpPost('report')
-  reportPost(@Body() dto: ReportPostDto) {
-    return this.postService.reportPost(dto);
+  @Post('report')
+  reportPost(@Body('postId') postId: number, @Body('reason') reason: string, @Req() req) {
+    const reporterId = req.user.userId; // Lấy từ JWT
+    return this.postService.reportPost({ postId, reason }, reporterId);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -123,10 +124,16 @@ export class PostController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   @Get('all-report')
-  getAllReport(@Query('page') page = 1, @Query('limit') limit = 10) {
-    const offset = (page - 1) * limit;
-    return this.postService.getAllPostReport(offset, Number(limit));
+  getAllReport(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    const pageNumber = parseInt(page, 10);
+    const limitNumber = parseInt(limit, 10);
+    const offset = (pageNumber - 1) * limitNumber;
+    return this.postService.getAllPostReport(offset, limitNumber);
   }
+
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Patch('reports/:id/resolve')
