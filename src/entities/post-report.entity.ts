@@ -17,10 +17,10 @@ export class PostReport {
     @ManyToOne(() => User, { eager: true, onDelete: 'CASCADE' })
     @JoinColumn({ name: 'reporter_id' })
     reporter: User;
-
-    @ManyToOne(() => Post, { onDelete: 'CASCADE' })
+    
+    @ManyToOne(() => Post, { onDelete: 'CASCADE', nullable: true }) // 👈 nullable: true để cho phép set null
     @JoinColumn({ name: 'post_id' })
-    post: Post;
+    post: Post | null;
 
     @ManyToOne(() => User, { eager: true, onDelete: 'CASCADE' })
     @JoinColumn({ name: 'reported_user_id' })
@@ -28,6 +28,9 @@ export class PostReport {
 
     @Column({ type: 'text' })
     reason: string;
+
+    @Column({ default: 'pending' })
+    status: 'pending' | 'ignored' | 'removed';
 
     @CreateDateColumn()
     created_at: Date;

@@ -403,7 +403,7 @@ export class PostService {
             id: r.id,
             reason: r.reason,
             created_at: r.created_at,
-
+            status: r.status,
             reporter: {
                 id: r.reporter.id,
                 first_name: r.reporter.first_name,
@@ -418,13 +418,16 @@ export class PostService {
                 avatar_url: r.reportedUser.avatar_url,
             },
 
-            post: {
-                id: r.post.id,
-                content: r.post.content,
-                media_url: r.post.media_url,
-                privacy: r.post.privacy,
-            }
+            post: r.post
+                ? {
+                    id: r.post.id,
+                    content: r.post.content,
+                    media_url: r.post.media_url,
+                    privacy: r.post.privacy,
+                }
+                : null, // 👈 Nếu bài viết đã bị xoá
         }));
+
 
         return {
             total,
@@ -434,6 +437,52 @@ export class PostService {
         };
     }
 
+    async resolveReport(reportId: number, action: 'ignore' | 'remove') {
+        console.log(`➡️ Bắt đầu xử lý báo cáo ID: ${reportId} với hành động: ${action}`);
+
+        const report = await this.postReportRepo.findOne({
+            where: { id: reportId },
+            relations: ['post', 'post.user'],
+        });
+
+        if (!report) {
+            console.log('⛔ Không tìm thấy báo cáo');
+            throw new NotFoundException('Báo cáo không tồn tại');
+        }
+
+        console.log(`✅ Đã tìm thấy báo cáo. Trạng thái hiện tại: ${report.status}`);
+        console.log(`📌 Thông tin bài viết: ID=${report.post?.id}, UserID=${report.post?.user?.id}`);
+
+        if (report.status !== 'pending') {
+            console.log('⚠️ Báo cáo đã được xử lý trước đó');
+            throw new BadRequestException('Báo cáo này đã được xử lý');
+        }
+
+        if (action === 'remove') {
+            report.status = 'removed';
+            await this.postReportRepo.save(report); // Lưu trạng thái báo cáo trước
+            console.log('🗑️ Báo cáo đã cập nhật trạng thái "removed", chuẩn bị xoá bài viết...');
+
+            const postId = report.post?.id;
+
+            if (typeof postId === 'undefined') {
+                throw new BadRequestException('postId is required');
+            }
+
+            await this.postRepo.delete(postId);
+            ; // Xoá bài viết
+            console.log(`✅ Đã xoá bài viết ID=${postId}`);
+
+            report.post = null; // 👈 Gỡ liên kết trước khi save lần 2
+        } else if (action === 'ignore') {
+            report.status = 'ignored';
+            console.log('🚫 Đánh dấu báo cáo là "ignored"');
+        }
+
+        const savedReport = await this.postReportRepo.save(report);
+        console.log('✅ Báo cáo đã được cập nhật xong');
+        return savedReport;
+    }
 
 
 }

@@ -13,6 +13,7 @@ import {
   Delete,
   Query,
   ParseIntPipe,
+  Patch,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PostService } from './posts.service';
@@ -125,6 +126,16 @@ export class PostController {
   getAllReport(@Query('page') page = 1, @Query('limit') limit = 10) {
     const offset = (page - 1) * limit;
     return this.postService.getAllPostReport(offset, Number(limit));
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Patch('reports/:id/resolve')
+  @Roles('admin')
+  async resolveReport(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { action: 'ignore' | 'remove' }
+  ) {
+    return this.postService.resolveReport(id, body.action);
   }
 
   @HttpPost(':id/share')
