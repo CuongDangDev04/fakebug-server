@@ -86,6 +86,13 @@ export class UserReportService {
 
     return report;
   }
-
+  /**
+   * Đếm số báo cáo chưa xử lý
+   */
+  async countPendingReports(): Promise<number> {
+    return await this.userReportRepo.count({
+      where: { status: 'pending' },
+    });
+  }
 
 }

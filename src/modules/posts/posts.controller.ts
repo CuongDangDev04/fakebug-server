@@ -145,6 +145,26 @@ export class PostController {
     return this.postService.resolveReport(id, body.action);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @Get('count-pending-reports')
+  async getCountPendingReports() {
+    return { count: await this.postService.countPendingPostReports() };
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @Get('report-status-count')
+  async getReportStatusCount() {
+    return await this.postService.getPostReportCountByStatus();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @Get('privacy-count')
+  async getPostPrivacyCount() {
+    return await this.postService.getPostCountByPrivacy();
+  }
   @HttpPost(':id/share')
   @UseGuards(JwtAuthGuard)
   async sharePost(

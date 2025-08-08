@@ -17,6 +17,11 @@ export class UserReportController {
     async getAll() {
         return this.reportService.getAllReports();
     }
+    
+    @Get('count-pending')
+    async countPending() {
+        return { count: await this.reportService.countPendingReports() };
+    }
 
     @Patch(':id')
     async updateStatus(@Param('id') id: number, @Body() body: { status: 'pending' | 'reviewed' | 'dismissed' }) {

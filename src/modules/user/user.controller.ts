@@ -50,6 +50,13 @@ export class UserController {
         const url = await this.cloudinaryService.uploadImage(file, 'covers');
         return this.userService.updateCover(userId, url);
     }
+    @Roles('admin')
+    @Get('count')
+    async countUsers() {
+        const count = await this.userService.countUsers();
+        return { count };
+    }
+
     @Get('search')
     async searchUsers(
         @Query('q') q: string,
@@ -76,7 +83,7 @@ export class UserController {
     }
 
     /**
-      * 📌 Lấy danh sách người dùng theo vai trò (admin hoặc user)
+      *Lấy danh sách người dùng theo vai trò (admin hoặc user)
       */
     @Roles('admin')
     @Get('role/:role')
@@ -89,7 +96,7 @@ export class UserController {
     }
 
     /**
-     * 🚫 Kích hoạt / Vô hiệu hóa tài khoản người dùng
+     *  Kích hoạt / Vô hiệu hóa tài khoản người dùng
      */
     @Roles('admin')
     @Put(':id/status')
@@ -99,4 +106,5 @@ export class UserController {
     ) {
         return this.userService.toggleUserStatus(id, disable);
     }
+
 }

@@ -292,5 +292,8 @@ export class UserService {
             },
         };
     }
+    async countUsers(): Promise<number> {
+        return this.userRepository.count();
+    }
 
 }

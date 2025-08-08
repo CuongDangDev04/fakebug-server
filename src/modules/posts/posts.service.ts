@@ -477,5 +477,56 @@ export class PostService {
         return savedReport;
     }
 
+    async countPendingPostReports(): Promise<number> {
+        return await this.postReportRepo.count({ where: { status: 'pending' } });
+    }
+
+    // Lấy số lượng báo cáo bài viết theo trạng thái (pending, resolved, ignored)
+    async getPostReportCountByStatus() {
+        const result = await this.postReportRepo
+            .createQueryBuilder('report')
+            .select('report.status', 'status')
+            .addSelect('COUNT(report.id)', 'count')
+            .groupBy('report.status')
+            .getRawMany();
+
+        // Chuẩn hóa kết quả thành object { pending, ignored, removed }
+        const counts = {
+            pending: 0,
+            ignored: 0,
+            removed: 0,
+        };
+
+        result.forEach(row => {
+            if (row.status in counts) {
+                counts[row.status] = parseInt(row.count, 10);
+            }
+        });
+
+        return counts;
+    }
+
+
+    // Lấy số lượng bài viết theo loại privacy (public, friends, private)
+    async getPostCountByPrivacy() {
+        const result = await this.postRepo
+            .createQueryBuilder('post')
+            .select('post.privacy', 'privacy')
+            .addSelect('COUNT(post.id)', 'count')
+            .groupBy('post.privacy')
+            .getRawMany();
+
+        const counts = {
+            public: 0,
+            friends: 0,
+            private: 0,
+        };
+
+        result.forEach(row => {
+            counts[row.privacy] = parseInt(row.count, 10);
+        });
+
+        return counts;
+    }
 
 }
