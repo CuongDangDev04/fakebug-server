@@ -14,6 +14,7 @@ import { Notification } from './notification.entity';
 import { MessageReaction } from './message-reaction.entity';
 import { CommentReaction } from './comment-reaction.entity';
 import { MessageBlock } from './message-block.entity';
+import { UserReport } from './user-report.entity';
 
 
 @Entity()
@@ -58,6 +59,10 @@ export class User {
 
   @Column({ default: false })
   is_disabled: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  banned_until: Date | null;
+
 
   // Một user có nhiều bài viết
   @OneToMany(() => Post, post => post.user)
@@ -110,4 +115,9 @@ export class User {
   @OneToMany(() => MessageBlock, block => block.blocked)
   blockedByMessageUsers: MessageBlock[];
 
+  @OneToMany(() => UserReport, report => report.reporter)
+  reportsMade: UserReport[];
+
+  @OneToMany(() => UserReport, report => report.reportedUser)
+  reportsReceived: UserReport[];
 }

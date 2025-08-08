@@ -12,6 +12,7 @@ import { CallModule } from './modules/call/call.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { PostReactionModule } from './modules/post-reaction/post-reaction.module';
 import { CommentModule } from './modules/comment/comment.module';
+import { UserReportModule } from './modules/user-report/user-report.module';
 
 @Module({
   imports: [
@@ -36,7 +37,8 @@ import { CommentModule } from './modules/comment/comment.module';
     CallModule,
     PostsModule,
     PostReactionModule,
-    CommentModule
+    CommentModule,
+    UserReportModule
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -44,26 +44,32 @@ export class AuthService {
         provider,
       });
     }
+
+    // Kiểm tra disable
     if (user.is_disabled) {
       throw new UnauthorizedException('Tài khoản của bạn đã bị vô hiệu hóa');
     }
+
+    // Kiểm tra thời hạn ban
+    if (user.banned_until && user.banned_until > new Date()) {
+      throw new UnauthorizedException(
+        `Tài khoản của bạn bị khóa đến ${user.banned_until.toLocaleString()} nên không thể đăng nhập`
+      );
+    }
+
     const payload = { sub: user.id, email: user.email, role: user.role };
 
-    // Tạo access token (15 phút)
     const access_token = this.jwtService.sign(payload, {
       expiresIn: '3h',
     });
 
-    // Tạo refresh token (7 ngày)
     const refresh_token_raw = this.jwtService.sign(payload, {
       expiresIn: '7d',
       secret: process.env.JWT_REFRESH_SECRET || 'refresh_secret',
     });
 
-    // Mã hóa refresh token để lưu vào DB
     const refresh_token_hashed = await bcrypt.hash(refresh_token_raw, 10);
 
-    // Cập nhật vào DB
     user.access_token = access_token;
     user.refresh_token = refresh_token_hashed;
     await this.userService.update(user);
@@ -76,7 +82,56 @@ export class AuthService {
     };
   }
 
+  async loginLocal(loginUserDto: LoginUserDto) {
+    const { emailOrUsername, password } = loginUserDto;
 
+    const user = await this.userService.findByEmailOrUsername(emailOrUsername);
+
+    if (!user || !user.password_hash) {
+      throw new BadRequestException('Email/username hoặc mật khẩu không chính xác');
+    }
+
+    // Kiểm tra disable
+    if (user.is_disabled) {
+      throw new UnauthorizedException('Tài khoản của bạn đã bị vô hiệu hóa');
+    }
+
+    // Kiểm tra thời hạn ban
+    if (user.banned_until && user.banned_until > new Date()) {
+      throw new UnauthorizedException(
+        `Tài khoản của bạn bị khóa đến ${user.banned_until.toLocaleString()} nên không thể đăng nhập`
+      );
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    if (!isPasswordValid) {
+      throw new BadRequestException('Email/username hoặc mật khẩu không chính xác');
+    }
+
+    const payload = { sub: user.id, email: user.email, role: user.role };
+
+    const access_token = this.jwtService.sign(payload, {
+      expiresIn: '1h',
+    });
+
+    const refresh_token_raw = this.jwtService.sign(payload, {
+      expiresIn: '7d',
+      secret: process.env.JWT_REFRESH_SECRET || 'refresh_secret',
+    });
+
+    const refresh_token_hashed = await bcrypt.hash(refresh_token_raw, 10);
+
+    user.access_token = access_token;
+    user.refresh_token = refresh_token_hashed;
+    await this.userService.update(user);
+
+    return {
+      message: 'Login successful',
+      access_token,
+      refresh_token: refresh_token_raw,
+      user,
+    };
+  }
 
   // Hàm đăng ký tài khoản local
   async registerLocal(registerUserDto: RegisterUserDto) {
@@ -118,55 +173,6 @@ export class AuthService {
     return {
       message: 'Registration successful',
       access_token: jwtAccessToken,
-      user,
-    };
-  }
-
-
-  // Hàm đăng nhập bằng email/password
-  async loginLocal(loginUserDto: LoginUserDto) {
-    const { emailOrUsername, password } = loginUserDto;
-
-    const user = await this.userService.findByEmailOrUsername(emailOrUsername);
-
-    if (!user || !user.password_hash) {
-      throw new BadRequestException('Email/username hoặc mật khẩu không chính xác');
-    }
-
-    if (user.is_disabled) {
-      throw new UnauthorizedException('Tài khoản của bạn đã bị vô hiệu hóa');
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-    if (!isPasswordValid) {
-      throw new BadRequestException('Email/username hoặc mật khẩu không chính xác');
-    }
-
-    // Payload dùng cho cả access và refresh
-    const payload = { sub: user.id, email: user.email, role: user.role };
-
-    const access_token = this.jwtService.sign(payload, {
-      expiresIn: '1h',
-    });
-
-    // Tạo refresh token (7 ngày)
-    const refresh_token_raw = this.jwtService.sign(payload, {
-      expiresIn: '7d',
-      secret: process.env.JWT_REFRESH_SECRET || 'refresh_secret',
-    });
-
-    // Mã hóa refresh token trước khi lưu
-    const refresh_token_hashed = await bcrypt.hash(refresh_token_raw, 10);
-
-    // Lưu token vào DB
-    user.access_token = access_token;
-    user.refresh_token = refresh_token_hashed;
-    await this.userService.update(user);
-
-    return {
-      message: 'Login successful',
-      access_token,
-      refresh_token: refresh_token_raw,
       user,
     };
   }
