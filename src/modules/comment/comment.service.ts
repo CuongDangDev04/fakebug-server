@@ -81,40 +81,60 @@ export class CommentService {
         await this.commentRepository.remove(comment);
         return { message: 'Comment deleted' };
     }
+async react(commentId: number, userId: number, type: ReactionType | null) {
+  const comment = await this.commentRepository.findOne({ where: { id: commentId } });
+  if (!comment) throw new NotFoundException('Comment not found');
 
-    async react(commentId: number, userId: number, type: ReactionType | null) {
-        const comment = await this.commentRepository.findOne({ where: { id: commentId } });
-        if (!comment) throw new NotFoundException('Comment not found');
+  const user = await this.userRepository.findOne({ where: { id: userId } });
+  if (!user) throw new NotFoundException('User not found');
 
-        const user = await this.userRepository.findOne({ where: { id: userId } });
-        if (!user) throw new NotFoundException('User not found');
+  let existingReaction = await this.reactionRepository.findOne({
+    where: { comment: { id: commentId }, user: { id: userId } },
+  });
 
-        let existingReaction = await this.reactionRepository.findOne({
-            where: { comment: { id: commentId }, user: { id: userId } },
-        });
-
-        if (existingReaction) {
-            if (type === null) {
-                // ✅ Nếu type=null thì xoá reaction
-                await this.reactionRepository.remove(existingReaction);
-                return { message: 'Reaction removed' };
-            } else {
-                existingReaction.type = type;
-                return this.reactionRepository.save(existingReaction);
-            }
-        } else {
-            if (type !== null) {
-                const newReaction = this.reactionRepository.create({
-                    comment,
-                    user,
-                    type,
-                });
-                return this.reactionRepository.save(newReaction);
-            } else {
-                // Không có reaction cũ, không làm gì
-                return { message: 'No existing reaction to remove' };
-            }
-        }
+  if (existingReaction) {
+    if (type === null) {
+      await this.reactionRepository.remove(existingReaction);
+      return { message: 'Reaction removed' };
+    } else {
+      existingReaction.type = type;
+      await this.reactionRepository.save(existingReaction);
+      
+      // Truy vấn lại để lấy reaction đầy đủ user + comment
+      const updatedReaction = await this.reactionRepository.findOne({
+        where: { id: existingReaction.id },
+        relations: ['user', 'comment'],
+      });
+      return updatedReaction!;
     }
+  } else {
+    if (type !== null) {
+      const newReaction = this.reactionRepository.create({
+        comment,
+        user,
+        type,
+      });
+      const saved = await this.reactionRepository.save(newReaction);
 
+      // Truy vấn lại để lấy reaction đầy đủ user + comment
+      const fullReaction = await this.reactionRepository.findOne({
+        where: { id: saved.id },
+        relations: ['user', 'comment'],
+      });
+      return fullReaction!;
+    } else {
+      // Không có reaction cũ, không cần xoá, trả về null hoặc một object phù hợp
+      return null;
+    }
+  }
+}
+
+
+
+    async findCommentWithPost(commentId: number): Promise<Comment | null> {
+        return this.commentRepository.findOne({
+            where: { id: commentId },
+            relations: ['post'],
+        });
+    }
 }

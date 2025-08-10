@@ -8,31 +8,11 @@ import { ReactionType } from 'src/entities/comment-reaction.entity';
 export class CommentController {
     constructor(private readonly commentService: CommentService) { }
 
-    @Post()
-    create(@Body() createDto: CreateCommentDto) {
-        return this.commentService.create(createDto);
-    }
-
-
-    @Patch(':id')
-    update(@Param('id') id: number, @Body() updateDto: UpdateCommentDto) {
-        return this.commentService.update(id, updateDto);
-    }
 
     @Get('post/:postId')
     findAllByPost(@Param('postId') postId: number) {
         return this.commentService.findAllByPost(postId);
     }
-    @Post(':commentId/react')
-    react(
-        @Param('commentId') commentId: number,
-        @Body() body: { userId: number; type: ReactionType },
-    ) {
-        return this.commentService.react(commentId, body.userId, body.type);
-    }
-    @Delete(':id')
-    remove(@Param('id') id: number) {
-        return this.commentService.remove(id);
-    }
+ 
 
 }
