@@ -82,13 +82,16 @@ export class PostController {
       parseInt(limit) || 5
     );
   }
-
+  
+  @UseGuards(JwtAuthGuard)
   @Get('public')
   getPublicPosts(
+    @Req() req,
     @Query('offset') offset: string,
     @Query('limit') limit: string
   ) {
     return this.postService.getPublicPosts(
+      req.user.userId,
       parseInt(offset) || 0,
       parseInt(limit) || 5
     );

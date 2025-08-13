@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, In, Repository } from 'typeorm';
+import { Brackets, In, Not, Repository } from 'typeorm';
 import { Post } from 'src/entities/post.entity';
 import { User } from 'src/entities/user.entity';
 import { CreatePostDto } from './dto/create-post.dto';
@@ -196,18 +196,44 @@ export class PostService {
             ]);
     }
 
-    // Lấy các bài viết công khai
-    async getPublicPosts(offset = 0, limit = 5) {
+    // Lấy các bài viết công khai nhưng loại người bị block
+    async getPublicPosts(userId: number, offset = 0, limit = 5) {
+        // 1. Lấy danh sách người bị block hoặc block mình
+        const blockedFriendships = await this.friendshipRepo.find({
+            where: [
+                { userOne: { id: userId }, status: 'blocked' },
+                { userTwo: { id: userId }, status: 'blocked' },
+            ],
+            relations: ['userOne', 'userTwo'],
+        });
+
+        const blockedIds = blockedFriendships.map(f =>
+            f.userOne.id === userId ? f.userTwo.id : f.userOne.id
+        );
+
+        // 2. Query bài viết public, bỏ các blockedIds
         const posts = await this.postRepo.find({
-            where: { privacy: 'public' },
-            relations: ['user', 'reactions', 'reactions.user', 'comments', 'originalPost', 'originalPost.user'],
+            where: {
+                privacy: 'public',
+                ...(blockedIds.length > 0 && { user: { id: Not(In(blockedIds)) } }),
+            },
+            relations: [
+                'user',
+                'reactions',
+                'reactions.user',
+                'comments',
+                'originalPost',
+                'originalPost.user',
+            ],
             order: { created_at: 'DESC' },
             skip: offset,
             take: limit,
         });
 
+        // 3. Format và trả về
         return posts.map(post => this.formatPostWithReactions(post));
     }
+
 
     // Lấy các bài viết riêng tư của chính người dùng
     async getPrivatePosts(userId: number, offset = 0, limit = 5) {
@@ -224,6 +250,7 @@ export class PostService {
 
     // Lấy bài viết của bạn bè (và chính user)
     async getFriendPosts(userId: number, offset = 0, limit = 5) {
+        // Lấy danh sách bạn bè đã chấp nhận (accepted) và không bị block
         const friendships = await this.friendshipRepo.find({
             where: [
                 { userOne: { id: userId }, status: 'accepted' },
@@ -232,13 +259,32 @@ export class PostService {
             relations: ['userOne', 'userTwo'],
         });
 
-        const friendIds = friendships.map(friendship =>
-            friendship.userOne.id === userId
-                ? friendship.userTwo.id
-                : friendship.userOne.id
-        );
-        friendIds.push(userId); // Bao gồm chính user
+        // Lấy danh sách các mối quan hệ bị block để loại bỏ
+        const blockedRelations = await this.friendshipRepo.find({
+            where: [
+                { userOne: { id: userId }, status: 'blocked' },
+                { userTwo: { id: userId }, status: 'blocked' },
+            ],
+            relations: ['userOne', 'userTwo'],
+        });
 
+        const blockedIds = blockedRelations.map(rel =>
+            rel.userOne.id === userId ? rel.userTwo.id : rel.userOne.id
+        );
+
+        // Lọc ra các friendId hợp lệ (accepted nhưng không bị block)
+        const friendIds = friendships
+            .map(friendship =>
+                friendship.userOne.id === userId
+                    ? friendship.userTwo.id
+                    : friendship.userOne.id
+            )
+            .filter(id => !blockedIds.includes(id));
+
+        // Thêm chính mình
+        friendIds.push(userId);
+
+        // Query bài viết của bạn bè và chính mình
         const posts = await this.buildPostQueryBuilder()
             .where('post.privacy = :privacy AND post.user.id IN (:...friendIds)', {
                 privacy: 'friends',
@@ -252,8 +298,21 @@ export class PostService {
         return posts.map(post => this.formatPostWithReactions(post));
     }
 
-    //lấy tất cả bài viết user có thể thấy
+
     async getAllVisiblePosts(userId: number, offset = 0, limit = 5) {
+        // 1. Lấy danh sách người bị block hoặc block mình
+        const blockedFriendships = await this.friendshipRepo.find({
+            where: [
+                { userOne: { id: userId }, status: 'blocked' },
+                { userTwo: { id: userId }, status: 'blocked' },
+            ],
+            relations: ['userOne', 'userTwo'],
+        });
+        const blockedIds = blockedFriendships.map(f =>
+            f.userOne.id === userId ? f.userTwo.id : f.userOne.id
+        );
+
+        // 2. Lấy danh sách bạn bè accepted
         const friendships = await this.friendshipRepo.find({
             where: [
                 { userOne: { id: userId }, status: 'accepted' },
@@ -261,16 +320,14 @@ export class PostService {
             ],
             relations: ['userOne', 'userTwo'],
         });
-
-        const friendIds = friendships.map(friendship =>
-            friendship.userOne.id === userId
-                ? friendship.userTwo.id
-                : friendship.userOne.id
+        let friendIds = friendships.map(f =>
+            f.userOne.id === userId ? f.userTwo.id : f.userOne.id
         );
         friendIds.push(userId);
+        friendIds = friendIds.filter(id => !blockedIds.includes(id));
 
+        // 3. Query bài viết
         const qb = this.buildPostQueryBuilder();
-
         qb.where(
             new Brackets(qb => {
                 qb.where('post.privacy = :public', { public: 'public' })
@@ -278,6 +335,7 @@ export class PostService {
                     .orWhere('post.privacy = :private AND post.user.id = :userId', { private: 'private', userId });
             }),
         )
+            .andWhere(blockedIds.length > 0 ? 'post.user.id NOT IN (:...blockedIds)' : '1=1', { blockedIds })
             .orderBy('post.created_at', 'DESC')
             .skip(offset)
             .take(limit);
@@ -285,6 +343,7 @@ export class PostService {
         const posts = await qb.getMany();
         return posts.map(post => this.formatPostWithReactions(post));
     }
+
 
     private formatPostWithReactions(post: Post) {
         const reactions = post.reactions || [];
